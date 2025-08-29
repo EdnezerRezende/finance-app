@@ -1,6 +1,19 @@
 [build]
   publish = "build/web"
-  command = "flutter build web --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY"
+  command = """
+    # Install Flutter
+    git clone https://github.com/flutter/flutter.git -b stable --depth 1
+    export PATH="$PATH:`pwd`/flutter/bin"
+    
+    # Enable web support
+    flutter config --enable-web
+    
+    # Get dependencies
+    flutter pub get
+    
+    # Build for web
+    flutter build web --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY --release
+  """
 
 [build.environment]
   FLUTTER_VERSION = "3.16.0"
@@ -9,6 +22,3 @@
   from = "/*"
   to = "/index.html"
   status = 200
-
-[context.production.environment]
-  FLUTTER_WEB_AUTO_DETECT = "true"
