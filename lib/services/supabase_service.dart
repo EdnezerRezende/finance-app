@@ -1,15 +1,17 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/env_config.dart';
 
 class SupabaseService {
-  static const String supabaseUrl = 'https://dinrbvxflxmouisjpmfz.supabase.co';
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpbnJidnhmbHhtb3Vpc2pwbWZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg2MTQ3ODIsImV4cCI6MjA2NDE5MDc4Mn0.T7Hhh7Hvo4GpgEycASUCqkQMRcgwFYJv5tHX_Ij39VY';
 
   static SupabaseClient get client => Supabase.instance.client;
 
   static Future<void> initialize() async {
+    // Validar variáveis de ambiente antes de inicializar
+    EnvConfig.validateEnvironment();
+    
     await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
+      url: EnvConfig.supabaseUrl,
+      anonKey: EnvConfig.supabaseAnonKey,
       authOptions: const FlutterAuthClientOptions(
         authFlowType: AuthFlowType.pkce,
       ),

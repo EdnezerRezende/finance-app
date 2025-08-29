@@ -1,0 +1,14 @@
+[build]
+  publish = "build/web"
+  command = "flutter build web --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY"
+
+[build.environment]
+  FLUTTER_VERSION = "3.16.0"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[context.production.environment]
+  FLUTTER_WEB_AUTO_DETECT = "true"

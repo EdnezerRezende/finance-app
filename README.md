@@ -96,19 +96,49 @@ lib/
 
 ## 🚀 Como Executar
 
+### Desenvolvimento Local
+
 1. **Instalar dependências:**
    ```bash
    flutter pub get
    ```
 
-2. **Executar o aplicativo:**
+2. **Configurar variáveis de ambiente:**
    ```bash
-   flutter run
+   # Copie o arquivo de exemplo
+   cp .env.example .env.local
+   
+   # Edite .env.local com suas credenciais do Supabase
+   SUPABASE_URL=https://seu-projeto.supabase.co
+   SUPABASE_ANON_KEY=sua-chave-anon-aqui
    ```
 
-3. **Para build de produção:**
+3. **Executar o aplicativo:**
    ```bash
-   flutter build apk --release
+   # Mobile
+   flutter run
+   
+   # Web com variáveis de ambiente
+   flutter run -d chrome --dart-define=SUPABASE_URL=sua-url --dart-define=SUPABASE_ANON_KEY=sua-chave
+   ```
+
+### Deploy no Netlify
+
+1. **Configurar variáveis de ambiente no Netlify:**
+   - Acesse seu dashboard do Netlify
+   - Vá em Site settings > Environment variables
+   - Adicione:
+     - `SUPABASE_URL`: URL do seu projeto Supabase
+     - `SUPABASE_ANON_KEY`: Chave anônima do Supabase
+
+2. **Deploy automático:**
+   - O arquivo `netlify.toml` já está configurado
+   - Push para o repositório GitHub conectado ao Netlify
+   - Build será executado automaticamente
+
+3. **Build manual:**
+   ```bash
+   flutter build web --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
    ```
 
 ## 📋 Pré-requisitos
