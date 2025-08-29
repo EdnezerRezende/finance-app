@@ -17,6 +17,7 @@
 
 [build.environment]
   FLUTTER_VERSION = "3.16.0"
+  SECRETS_SCAN_OMIT_PATHS = ".dart_tool/**,build/**"
 
 [[redirects]]
   from = "/*"
