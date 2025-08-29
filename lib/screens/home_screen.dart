@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/credit_card_provider.dart';
+import '../providers/installment_provider.dart';
 import '../providers/ai_provider.dart';
 import '../providers/date_provider.dart';
 import '../widgets/balance_card.dart';
@@ -64,7 +65,6 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _buildDashboardTab(),
           _buildTransactionsTab(),
-          _buildAITab(),
           _buildReportsTab(),
           _buildCreditCardsTab(),
           _buildFinancesTab(),
@@ -98,10 +98,6 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.receipt_long),
               label: 'Transações',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.psychology),
-              label: 'IA',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.analytics),
@@ -335,9 +331,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCreditCardsPreview() {
-    return Consumer<CreditCardProvider>(
-      builder: (context, creditCardProvider, child) {
-        final cards = creditCardProvider.creditCards.take(2).toList();
+    return Consumer2<InstallmentProvider, DateProvider>(
+      builder: (context, installmentProvider, dateProvider, child) {
+        final currentMonthInstallments = installmentProvider.currentMonthInstallments(dateProvider.selectedMonth);
+        final totalValue = currentMonthInstallments.fold(0.0, (sum, installment) => sum + installment.valor);
+        final installmentCount = currentMonthInstallments.length;
 
         return Container(
           margin: const EdgeInsets.all(16),
@@ -356,7 +354,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () => setState(() => _currentIndex = 4),
+                    onPressed: () => setState(() => _currentIndex = 3),
                     child: Text(
                       'Ver todos',
                       style: GoogleFonts.poppins(
@@ -367,7 +365,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              if (cards.isEmpty)
+              const SizedBox(height: 12),
+              if (installmentCount == 0)
                 Container(
                   padding: const EdgeInsets.all(32),
                   child: Center(
@@ -380,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Nenhum cartão cadastrado',
+                          'Nenhuma parcela este mês',
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             color: Colors.grey.shade600,
@@ -391,7 +390,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 )
               else
-                ...cards.map((card) => CreditCardWidget(card: card)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Total do Mês',
+                        'R\$ ${totalValue.toStringAsFixed(2).replaceAll('.', ',')}',
+                        Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildSummaryCard(
+                        'Parcelas',
+                        '$installmentCount',
+                        Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         );
@@ -399,13 +416,48 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildSummaryCard(String title, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTransactionsTab() {
     return const TransactionsScreen();
   }
 
-  Widget _buildAITab() {
-    return const AIAdvisorScreen();
-  }
 
   Widget _buildReportsTab() {
     return const ReportsScreen();
