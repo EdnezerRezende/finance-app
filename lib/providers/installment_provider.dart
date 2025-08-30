@@ -9,11 +9,22 @@ class InstallmentProvider with ChangeNotifier {
   List<Installment> _installments = [];
   bool _isLoading = false;
   String? _error;
+  String? _currentGroupId;
 
   List<Purchase> get purchases => _purchases;
   List<Installment> get installments => _installments;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? get currentGroupId => _currentGroupId;
+
+  // Setter para atualizar o grupo atual
+  void setCurrentGroup(String? groupId) {
+    if (_currentGroupId != groupId) {
+      _currentGroupId = groupId;
+      _installments.clear(); // Limpar dados antigos
+      notifyListeners();
+    }
+  }
 
   // Get installments for current selected month
   List<Installment> currentMonthInstallments(DateTime selectedMonth) {
@@ -78,7 +89,7 @@ class InstallmentProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await SupabaseService.getInstallments(month: month);
+      final data = await SupabaseService.getInstallments(month: month, groupId: _currentGroupId);
       _installments = data.map((json) {
         // Flatten the joined data
         final flatJson = Map<String, dynamic>.from(json);

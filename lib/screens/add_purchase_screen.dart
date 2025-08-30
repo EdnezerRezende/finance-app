@@ -399,7 +399,7 @@ class _AddPurchaseScreenState extends State<AddPurchaseScreen> {
       context: context,
       initialDate: isPurchaseDate ? _purchaseDate : _firstInstallmentDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
+      lastDate: DateTime(2050),
     );
     
     if (picked != null) {

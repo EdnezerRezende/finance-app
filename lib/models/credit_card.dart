@@ -13,6 +13,7 @@ class CreditCard {
   final String cardColor;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? groupId;
 
   CreditCard({
     required this.id,
@@ -29,6 +30,7 @@ class CreditCard {
     this.cardColor = '#2196F3',
     DateTime? createdAt,
     DateTime? updatedAt,
+    this.groupId,
   }) : createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now();
 
@@ -60,6 +62,7 @@ class CreditCard {
       'due_day': dueDay,
       'is_active': isActive,
       'card_color': cardColor,
+      'group_id': groupId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -80,6 +83,7 @@ class CreditCard {
       dueDay: json['due_day'] ?? 10,
       isActive: json['is_active'] ?? true,
       cardColor: json['card_color'] ?? '#2196F3',
+      groupId: json['group_id'],
       createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
     );

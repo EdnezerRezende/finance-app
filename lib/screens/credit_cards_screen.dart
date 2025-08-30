@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../models/installment.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/installment_provider.dart';
 import '../providers/date_provider.dart';
-import 'add_installment_screen.dart';
+import '../providers/group_provider.dart';
+import '../widgets/installment_manager.dart';
+import '../models/installment.dart';
+import '../screens/add_purchase_screen.dart';
 
 class CreditCardsScreen extends StatefulWidget {
   const CreditCardsScreen({super.key});
@@ -26,6 +28,11 @@ class _CreditCardsScreenState extends State<CreditCardsScreen> {
   Future<void> _loadInstallments() async {
     final provider = Provider.of<InstallmentProvider>(context, listen: false);
     final dateProvider = Provider.of<DateProvider>(context, listen: false);
+    final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+    
+    // Ensure InstallmentProvider has the current group set
+    provider.setCurrentGroup(groupProvider.selectedGroupId);
+    
     await provider.loadInstallments(month: dateProvider.selectedMonth);
   }
 
@@ -152,7 +159,7 @@ class _CreditCardsScreenState extends State<CreditCardsScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const AddInstallmentScreen(),
+              builder: (context) => const AddPurchaseScreen(),
             ),
           );
         },
@@ -504,7 +511,8 @@ class _CreditCardsScreenState extends State<CreditCardsScreen> {
       context: context,
       initialDate: dateProvider.selectedMonth,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
+      lastDate: DateTime(2050),
+      // currentDate: DateTime.now(),
     );
     
     if (picked != null) {

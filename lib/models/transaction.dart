@@ -1,6 +1,6 @@
 enum TransactionType {
-  expense,
-  income,
+  DESPESA,
+  ENTRADA,
 }
 
 enum TransactionCategory {
@@ -25,6 +25,7 @@ class Transaction {
   final DateTime date;
   final bool isPago;
   final String userId;
+  final String? groupId;
   final DateTime createdAt;
 
   Transaction({
@@ -36,6 +37,7 @@ class Transaction {
     required this.date,
     this.isPago = false,
     required this.userId,
+    this.groupId,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -49,6 +51,7 @@ class Transaction {
       'date': date.toIso8601String(),
       'isPago': isPago,
       'userId': userId,
+      'group_id': groupId,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -64,6 +67,7 @@ class Transaction {
       date: DateTime.parse(json['date'] ?? DateTime.now().toIso8601String()),
       isPago: json['isPago'] ?? false,
       userId: json['userId'] ?? '',
+      groupId: json['group_id'],
       createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
     );
   }
@@ -72,9 +76,9 @@ class Transaction {
   String get title => description;
   String get categoryName => category;
   String get categoryId => category;
-  TransactionType get transactionType => type == 'income' ? TransactionType.income : TransactionType.expense;
-  bool get isExpense => type == 'expense';
-  bool get isIncome => type == 'income';
+  TransactionType get transactionType => (type == 'income' || type == 'ENTRADA') ? TransactionType.ENTRADA : TransactionType.DESPESA;
+  bool get isExpense => type == 'expense' || type == 'DESPESA';
+  bool get isIncome => type == 'income' || type == 'ENTRADA';
   
   // Legacy support for local storage
   Map<String, dynamic> toJson() {
@@ -111,6 +115,7 @@ class Transaction {
     DateTime? date,
     bool? isPago,
     String? userId,
+    String? groupId,
   }) {
     return Transaction(
       id: id,
@@ -121,6 +126,7 @@ class Transaction {
       date: date ?? this.date,
       isPago: isPago ?? this.isPago,
       userId: userId ?? this.userId,
+      groupId: groupId ?? this.groupId,
       createdAt: createdAt,
     );
   }

@@ -156,10 +156,10 @@ class AIProvider with ChangeNotifier {
 
     // Recomendação de investimento se houver saldo positivo
     final totalIncome = transactions
-        .where((t) => t.type == TransactionType.income)
+        .where((t) => t.type == TransactionType.ENTRADA)
         .fold(0.0, (sum, t) => sum + t.amount);
     final totalExpenses = transactions
-        .where((t) => t.type == TransactionType.expense)
+        .where((t) => t.type == TransactionType.DESPESA)
         .fold(0.0, (sum, t) => sum + t.amount);
     
     if (totalIncome > totalExpenses) {

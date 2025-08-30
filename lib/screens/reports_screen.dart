@@ -295,10 +295,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildIncomeVsExpenseChart(List<Transaction> transactions) {
     final income = transactions
-        .where((t) => t.type == TransactionType.income)
+        .where((t) => t.type == TransactionType.ENTRADA)
         .fold(0.0, (sum, t) => sum + t.amount);
     final expenses = transactions
-        .where((t) => t.type == TransactionType.expense)
+        .where((t) => t.type == TransactionType.DESPESA)
         .fold(0.0, (sum, t) => sum + t.amount);
 
     if (income == 0 && expenses == 0) {
@@ -551,7 +551,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       context: context,
       initialDate: dateProvider.selectedMonth,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime(2050),
       initialDatePickerMode: DatePickerMode.year,
     ).then((date) {
       if (date != null) {

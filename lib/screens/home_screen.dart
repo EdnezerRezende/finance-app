@@ -6,9 +6,12 @@ import '../providers/credit_card_provider.dart';
 import '../providers/installment_provider.dart';
 import '../providers/ai_provider.dart';
 import '../providers/date_provider.dart';
+import '../providers/group_provider.dart';
+import '../providers/finance_provider.dart';
 import '../widgets/balance_card.dart';
 import '../widgets/transaction_item.dart';
 import '../widgets/credit_card_widget.dart';
+import '../widgets/group_selector.dart';
 import 'add_transaction_screen.dart';
 import 'transactions_screen.dart';
 import 'ai_advisor_screen.dart';
@@ -29,18 +32,67 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+    
+    // Carregar grupos do usuário primeiro
+    await groupProvider.loadUserGroups();
+    
+    // Se há grupos disponíveis, selecionar o primeiro automaticamente
+    if (groupProvider.userGroups.isNotEmpty && groupProvider.selectedGroupId == null) {
+      groupProvider.selectGroup(groupProvider.userGroups.first.id);
+    }
+    
+    // Configurar listeners para mudanças de grupo
+    groupProvider.addListener(_onGroupChanged);
+    
+    // Carregar dados se há um grupo selecionado
+    if (groupProvider.selectedGroupId != null) {
+      await _loadData();
+    }
+  }
+
+  void _onGroupChanged() {
+    final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+    if (groupProvider.selectedGroupId != null) {
+      _updateProvidersWithGroup();
+      _loadData();
+    }
+  }
+
+  void _updateProvidersWithGroup() {
+    final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+    final selectedGroupId = groupProvider.selectedGroupId;
+    
+    if (selectedGroupId != null) {
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      final financeProvider = Provider.of<FinanceProvider>(context, listen: false);
+      final creditCardProvider = Provider.of<CreditCardProvider>(context, listen: false);
+      final installmentProvider = Provider.of<InstallmentProvider>(context, listen: false);
+      
+      transactionProvider.setCurrentGroup(selectedGroupId);
+      financeProvider.setCurrentGroup(selectedGroupId);
+      creditCardProvider.setCurrentGroup(selectedGroupId);
+      installmentProvider.setCurrentGroup(selectedGroupId);
+    }
   }
 
   Future<void> _loadData() async {
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final creditCardProvider = Provider.of<CreditCardProvider>(context, listen: false);
+    final installmentProvider = Provider.of<InstallmentProvider>(context, listen: false);
+    final financeProvider = Provider.of<FinanceProvider>(context, listen: false);
     final aiProvider = Provider.of<AIProvider>(context, listen: false);
     final dateProvider = Provider.of<DateProvider>(context, listen: false);
 
     await Future.wait([
       transactionProvider.loadTransactions(month: dateProvider.selectedMonth),
       creditCardProvider.loadCreditCards(),
+      installmentProvider.loadInstallments(month: dateProvider.selectedMonth),
+      financeProvider.loadFinances(),
       aiProvider.loadRecommendations(),
     ]);
 
@@ -49,6 +101,13 @@ class _HomeScreenState extends State<HomeScreen> {
       transactionProvider.transactions,
       creditCardProvider.creditCards,
     );
+  }
+
+  @override
+  void dispose() {
+    final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+    groupProvider.removeListener(_onGroupChanged);
+    super.dispose();
   }
 
   Future<void> _reloadTransactionsForMonth(DateTime selectedMonth) async {
@@ -126,7 +185,11 @@ class _HomeScreenState extends State<HomeScreen> {
               expandedHeight: 120,
               floating: false,
               pinned: true,
-              backgroundColor: Colors.blue.shade600,
+              backgroundColor: const Color(0xFF2E7D32),
+              actions: const [
+                GroupSelector(),
+                SizedBox(width: 8),
+              ],
               flexibleSpace: FlexibleSpaceBar(
                 title: Text(
                   'Finanças Pessoais',
@@ -136,13 +199,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 background: Container(
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Colors.blue.shade600,
-                        Colors.blue.shade800,
+                        Color(0xFF2E7D32),
+                        Color(0xFF1B5E20),
                       ],
                     ),
                   ),

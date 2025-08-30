@@ -123,35 +123,38 @@ class SupabaseService {
   }
 
   // Database methods for expenses (transactions)
-  static Future<List<Map<String, dynamic>>> getExpenses({DateTime? month}) async {
+  static Future<List<Map<String, dynamic>>> getExpenses({DateTime? month, String? groupId}) async {
+    var query = client.from('expense').select('*');
+    
+    if (groupId != null) {
+      query = query.eq('group_id', groupId);
+    }
+    
     if (month != null) {
       final startDate = DateTime(month.year, month.month, 1);
       final endDate = DateTime(month.year, month.month + 1, 0);
-      
-      final response = await client
-          .from('expense')
-          .select('*')
+      query = query
           .gte('date', startDate.toIso8601String())
-          .lte('date', endDate.toIso8601String())
-          .order('date', ascending: false);
-      return response;
-    } else {
-      final response = await client
-          .from('expense')
-          .select('*')
-          .order('date', ascending: false);
-      return response;
+          .lte('date', endDate.toIso8601String());
     }
+    
+    final response = await query.order('date', ascending: false);
+    return response;
   }
 
   // Get expenses by date range
-  static Future<List<Map<String, dynamic>>> getExpensesByDateRange(DateTime startDate, DateTime endDate) async {
-    final response = await client
+  static Future<List<Map<String, dynamic>>> getExpensesByDateRange(DateTime startDate, DateTime endDate, {String? groupId}) async {
+    var query = client
         .from('expense')
         .select('*')
         .gte('date', startDate.toIso8601String().split('T')[0])
-        .lte('date', endDate.toIso8601String().split('T')[0])
-        .order('date', ascending: false);
+        .lte('date', endDate.toIso8601String().split('T')[0]);
+    
+    if (groupId != null) {
+      query = query.eq('group_id', groupId);
+    }
+    
+    final response = await query.order('date', ascending: false);
     return response;
   }
 
@@ -162,7 +165,7 @@ class SupabaseService {
   }
 
   static Future<Map<String, dynamic>> insertExpense(Map<String, dynamic> expense) async {
-    expense['user_id'] = currentUser!.id;
+    expense['userId'] = currentUser!.id;
     final response = await client
         .from('expense')
         .insert(expense)
@@ -255,11 +258,14 @@ class SupabaseService {
   }
 
   // Database methods for finance records (loans/financing)
-  static Future<List<Map<String, dynamic>>> getFinanceRecords() async {
-    final response = await client
-        .from('finances')
-        .select()
-        .order('created_at', ascending: false);
+  static Future<List<Map<String, dynamic>>> getFinanceRecords({String? groupId}) async {
+    var query = client.from('finances').select();
+    
+    if (groupId != null) {
+      query = query.eq('group_id', groupId);
+    }
+    
+    final response = await query.order('created_at', ascending: false);
     return response;
   }
 
@@ -365,7 +371,7 @@ class SupabaseService {
   }
 
   // Installment methods (parcelas) - Nova estrutura da tabela cartao
-  static Future<List<Map<String, dynamic>>> getInstallments({DateTime? month}) async {
+  static Future<List<Map<String, dynamic>>> getInstallments({DateTime? month, String? groupId}) async {
     if (!isLoggedIn) throw Exception('User not authenticated');
 
     var query = client
@@ -378,19 +384,29 @@ class SupabaseService {
           .eq('ano', month.year);
     }
 
+    if (groupId != null) {
+      query = query.eq('group_id', groupId);
+    }
+
     final response = await query.order('mes', ascending: true).order('ano', ascending: true);
     return response;
   }
 
-  static Future<List<Map<String, dynamic>>> getUpcomingInstallments(int days) async {
+  static Future<List<Map<String, dynamic>>> getUpcomingInstallments(int days, {String? groupId}) async {
     final now = DateTime.now();
     final endDate = now.add(Duration(days: days));
-    final response = await client
+    var query = client
         .from('cartao')
         .select('*')
         .eq('status', 'pending')
         .gte('ano', now.year)
-        .lte('ano', endDate.year)
+        .lte('ano', endDate.year);
+    
+    if (groupId != null) {
+      query = query.eq('group_id', groupId);
+    }
+    
+    final response = await query
         .order('ano', ascending: true)
         .order('mes', ascending: true);
     return response;
@@ -432,23 +448,178 @@ class SupabaseService {
   }
 
   // Credit card methods (simplified for basic card info)
-  static Future<List<Map<String, dynamic>>> getCreditCards() async {
-    final response = await client
-        .from('credit_cards')
-        .select()
-        // .eq('user_id', currentUser!.id)
-        .eq('is_active', true)
-        .order('created_at', ascending: false);
+  static Future<List<Map<String, dynamic>>> getCreditCards({String? groupId}) async {
+    var query = client
+        .from('cartao')
+        .select();
+    
+    if (groupId != null) {
+      query = query.eq('group_id', groupId);
+    }
+    
+    final response = await query.order('created_at', ascending: false);
     return response;
   }
 
   static Future<Map<String, dynamic>> insertCreditCard(Map<String, dynamic> card) async {
-    card['user_id'] = currentUser!.id;
+    card['userId'] = currentUser!.id;
     final response = await client
-        .from('credit_cards')
+        .from('cartao')
         .insert(card)
         .select()
         .single();
     return response;
+  }
+
+  // Group management methods
+  static Future<List<Map<String, dynamic>>> getUserGroups() async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    final response = await client
+        .from('group_members')
+        .select('''
+          *,
+          groups!inner(*)
+        ''')
+        .eq('user_id', currentUser!.id)
+        .eq('status', 'active')
+        .order('groups.created_at', ascending: false);
+    return response;
+  }
+
+  static Future<Map<String, dynamic>> createGroup(String name, String description) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    final groupData = {
+      'name': name,
+      'description': description,
+      'owner_id': currentUser!.id,
+      'created_at': DateTime.now().toIso8601String(),
+    };
+    
+    final response = await client
+        .from('groups')
+        .insert(groupData)
+        .select()
+        .single();
+    
+    // Add creator as group owner
+    await client
+        .from('group_members')
+        .insert({
+          'group_id': response['id'],
+          'user_id': currentUser!.id,
+          'user_email': currentUser!.email!,
+          'role': 'owner',
+          'status': 'active',
+          'joined_at': DateTime.now().toIso8601String(),
+        });
+    
+    return response;
+  }
+
+  static Future<void> deleteGroup(String groupId) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    await client
+        .from('groups')
+        .delete()
+        .eq('id', groupId)
+        .eq('owner_id', currentUser!.id);
+  }
+
+  static Future<List<Map<String, dynamic>>> getGroupMembers(String groupId) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    final response = await client
+        .from('group_members')
+        .select('id, group_id, user_id, role, joined_at, invited_by, status, user_email')
+        .eq('group_id', groupId)
+        .order('joined_at', ascending: true);
+    return response;
+  }
+
+  static Future<void> inviteUserToGroup(String groupId, String userEmail) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    // Check if user is already a member
+    final existingMember = await client
+        .from('group_members')
+        .select('id')
+        .eq('group_id', groupId)
+        .eq('user_email', userEmail)
+        .maybeSingle();
+    
+    if (existingMember != null) {
+      throw Exception('User is already a member of this group');
+    }
+    
+    await client
+        .from('group_members')
+        .insert({
+          'group_id': groupId,
+          'user_email': userEmail,
+          'role': 'member',
+          'status': 'pending',
+          'invited_by': currentUser!.id,
+          'invited_at': DateTime.now().toIso8601String(),
+        });
+  }
+
+  static Future<List<Map<String, dynamic>>> getPendingInvites() async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    final response = await client
+        .from('group_members')
+        .select('''
+          *,
+          groups!inner(name),
+          inviter:invited_by(email)
+        ''')
+        .eq('user_email', currentUser!.email!)
+        .eq('status', 'pending')
+        .order('invited_at', ascending: false);
+    return response;
+  }
+
+  static Future<void> respondToGroupInvite(String inviteId, bool accept) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    if (accept) {
+      await client
+          .from('group_members')
+          .update({
+            'status': 'active',
+            'user_id': currentUser!.id,
+            'joined_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', inviteId)
+          .eq('user_email', currentUser!.email!);
+    } else {
+      await client
+          .from('group_members')
+          .delete()
+          .eq('id', inviteId)
+          .eq('user_email', currentUser!.email!);
+    }
+  }
+
+  static Future<void> removeGroupMember(String groupId, String memberId) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    await client
+        .from('group_members')
+        .delete()
+        .eq('id', memberId)
+        .eq('group_id', groupId);
+  }
+
+  static Future<void> updateMemberRole(String memberId, String newRole) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    await client
+        .from('group_members')
+        .update({'role': newRole})
+        .eq('id', memberId);
   }
 }

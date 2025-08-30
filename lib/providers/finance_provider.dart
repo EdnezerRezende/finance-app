@@ -6,10 +6,21 @@ class FinanceProvider with ChangeNotifier {
   List<Finance> _finances = [];
   bool _isLoading = false;
   String? _error;
+  String? _currentGroupId;
 
   List<Finance> get finances => _finances;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? get currentGroupId => _currentGroupId;
+
+  // Setter para atualizar o grupo atual
+  void setCurrentGroup(String? groupId) {
+    if (_currentGroupId != groupId) {
+      _currentGroupId = groupId;
+      _finances.clear(); // Limpar dados antigos
+      notifyListeners();
+    }
+  }
 
   // Filtrar por tipo
   List<Finance> getFinancesByType(FinanceType type) {
@@ -53,12 +64,18 @@ class FinanceProvider with ChangeNotifier {
       return;
     }
 
+    if (_currentGroupId == null) {
+      _error = 'Nenhum grupo selecionado';
+      notifyListeners();
+      return;
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final data = await SupabaseService.getFinanceRecords();
+      final data = await SupabaseService.getFinanceRecords(groupId: _currentGroupId);
       _finances = data.map((json) => Finance.fromSupabase(json)).toList();
     } catch (e) {
       _error = 'Erro ao carregar financiamentos: $e';
@@ -76,12 +93,20 @@ class FinanceProvider with ChangeNotifier {
       return;
     }
 
+    if (_currentGroupId == null) {
+      _error = 'Nenhum grupo selecionado';
+      notifyListeners();
+      return;
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final data = await SupabaseService.insertFinance(finance.toSupabase());
+      // Adicionar group ID ao financiamento
+      final financeWithGroup = finance.copyWith(groupId: _currentGroupId);
+      final data = await SupabaseService.insertFinance(financeWithGroup.toSupabase());
       final newFinance = Finance.fromSupabase(data);
       _finances.insert(0, newFinance);
     } catch (e) {

@@ -9,6 +9,7 @@ class Finance {
   final double? valorDesconto;
   final double? valorPago;
   final String? userId;
+  final String? groupId;
 
   Finance({
     required this.id,
@@ -21,6 +22,7 @@ class Finance {
     this.valorDesconto,
     this.valorPago,
     this.userId,
+    this.groupId,
   });
 
   factory Finance.fromSupabase(Map<String, dynamic> json) {
@@ -37,6 +39,7 @@ class Finance {
       valorDesconto: json['valorDesconto'] != null ? (json['valorDesconto'] as num).toDouble() : null,
       valorPago: json['valorPago'] != null ? (json['valorPago'] as num).toDouble() : null,
       userId: json['userId'] as String?,
+      groupId: json['group_id'] as String?,
     );
   }
 
@@ -50,6 +53,7 @@ class Finance {
       'valorDesconto': valorDesconto,
       'valorPago': valorPago,
       'userId': userId,
+      'group_id': groupId,
     };
   }
 
@@ -76,6 +80,7 @@ class Finance {
     double? valorDesconto,
     double? valorPago,
     String? userId,
+    String? groupId,
   }) {
     return Finance(
       id: id ?? this.id,
@@ -88,6 +93,7 @@ class Finance {
       valorDesconto: valorDesconto ?? this.valorDesconto,
       valorPago: valorPago ?? this.valorPago,
       userId: userId ?? this.userId,
+      groupId: groupId ?? this.groupId,
     );
   }
 }

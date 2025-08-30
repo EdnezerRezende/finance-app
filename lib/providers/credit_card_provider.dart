@@ -7,10 +7,21 @@ class CreditCardProvider with ChangeNotifier {
   List<CreditCard> _creditCards = [];
   bool _isLoading = false;
   String? _error;
+  String? _currentGroupId;
 
   List<CreditCard> get creditCards => _creditCards;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? get currentGroupId => _currentGroupId;
+
+  // Setter para atualizar o grupo atual
+  void setCurrentGroup(String? groupId) {
+    if (_currentGroupId != groupId) {
+      _currentGroupId = groupId;
+      _creditCards.clear(); // Limpar dados antigos
+      notifyListeners();
+    }
+  }
 
   double get totalLimit => _creditCards.fold(0, (sum, card) => sum + card.creditLimit);
   double get totalBalance => _creditCards.fold(0, (sum, card) => sum + card.currentBalance);
@@ -23,12 +34,18 @@ class CreditCardProvider with ChangeNotifier {
       return;
     }
 
+    if (_currentGroupId == null) {
+      _error = 'Nenhum grupo selecionado';
+      notifyListeners();
+      return;
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final data = await SupabaseService.getCreditCards();
+      final data = await SupabaseService.getCreditCards(groupId: _currentGroupId);
       _creditCards = data.map((json) => CreditCard.fromSupabase(json)).toList();
     } catch (e) {
       _error = 'Erro ao carregar cartões: $e';
@@ -42,6 +59,12 @@ class CreditCardProvider with ChangeNotifier {
   Future<void> addCreditCard(CreditCard card) async {
     if (!SupabaseService.isLoggedIn) {
       _error = 'Usuário não autenticado';
+      notifyListeners();
+      return;
+    }
+
+    if (_currentGroupId == null) {
+      _error = 'Nenhum grupo selecionado';
       notifyListeners();
       return;
     }
@@ -63,6 +86,7 @@ class CreditCardProvider with ChangeNotifier {
         closingDay: card.closingDay,
         dueDay: card.dueDay,
         cardColor: card.cardColor,
+        groupId: _currentGroupId,
       );
 
       final data = await SupabaseService.insertCreditCard(newCard.toSupabase());

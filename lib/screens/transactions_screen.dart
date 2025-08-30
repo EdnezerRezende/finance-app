@@ -373,7 +373,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
       context: context,
       initialDate: dateProvider.selectedMonth,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime(2050),
       initialDatePickerMode: DatePickerMode.year,
     ).then((date) {
       if (date != null) {
