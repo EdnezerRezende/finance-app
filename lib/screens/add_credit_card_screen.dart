@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../models/credit_card.dart';
 import '../providers/credit_card_provider.dart';
+import '../utils/currency_formatter.dart';
 
 class AddCreditCardScreen extends StatefulWidget {
   const AddCreditCardScreen({super.key});
@@ -177,7 +178,7 @@ class _AddCreditCardScreenState extends State<AddCreditCardScreen> {
                   Text(
                     _limitController.text.isEmpty 
                         ? 'R\$ 0,00' 
-                        : 'R\$ ${_limitController.text}',
+                        : _limitController.text,
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       color: Colors.white,
@@ -199,7 +200,12 @@ class _AddCreditCardScreenState extends State<AddCreditCardScreen> {
                   Text(
                     _limitController.text.isEmpty || _balanceController.text.isEmpty
                         ? 'R\$ 0,00'
-                        : 'R\$ ${(double.tryParse(_limitController.text) ?? 0) - (double.tryParse(_balanceController.text) ?? 0)}',
+                        : () {
+                            final limit = BrazilianCurrencyInputFormatter.parseValue(_limitController.text) ?? 0.0;
+                            final balance = BrazilianCurrencyInputFormatter.parseValue(_balanceController.text) ?? 0.0;
+                            final available = limit - balance;
+                            return BrazilianCurrencyInputFormatter.formatCurrency(available);
+                          }(),
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       color: Colors.white,
@@ -335,26 +341,17 @@ class _AddCreditCardScreenState extends State<AddCreditCardScreen> {
           ),
         ],
       ),
-      child: TextFormField(
+      child: CurrencyTextField(
         controller: _limitController,
+        labelText: 'Limite',
+        showCurrencySymbol: true,
         onChanged: (value) => setState(() {}),
-        keyboardType: TextInputType.number,
-        decoration: InputDecoration(
-          labelText: 'Limite',
-          prefixText: 'R\$ ',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.all(16),
-        ),
         validator: (value) {
           if (value == null || value.isEmpty) {
             return 'Por favor, insira o limite';
           }
-          if (double.tryParse(value) == null) {
+          final parsedValue = BrazilianCurrencyInputFormatter.parseValue(value);
+          if (parsedValue == null || parsedValue <= 0) {
             return 'Por favor, insira um valor válido';
           }
           return null;
@@ -376,26 +373,17 @@ class _AddCreditCardScreenState extends State<AddCreditCardScreen> {
           ),
         ],
       ),
-      child: TextFormField(
+      child: CurrencyTextField(
         controller: _balanceController,
+        labelText: 'Saldo Atual',
+        showCurrencySymbol: true,
         onChanged: (value) => setState(() {}),
-        keyboardType: TextInputType.number,
-        decoration: InputDecoration(
-          labelText: 'Saldo Atual',
-          prefixText: 'R\$ ',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.all(16),
-        ),
         validator: (value) {
           if (value == null || value.isEmpty) {
             return 'Por favor, insira o saldo';
           }
-          if (double.tryParse(value) == null) {
+          final parsedValue = BrazilianCurrencyInputFormatter.parseValue(value);
+          if (parsedValue == null || parsedValue < 0) {
             return 'Por favor, insira um valor válido';
           }
           return null;
@@ -602,14 +590,17 @@ class _AddCreditCardScreenState extends State<AddCreditCardScreen> {
 
   void _saveCard() {
     if (_formKey.currentState!.validate()) {
+      final creditLimit = BrazilianCurrencyInputFormatter.parseValue(_limitController.text) ?? 0.0;
+      final currentBalance = BrazilianCurrencyInputFormatter.parseValue(_balanceController.text) ?? 0.0;
+      
       final card = CreditCard(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text,
         cardNumberMasked: _cardNumberController.text,
         bankName: _bankController.text,
-        creditLimit: double.parse(_limitController.text),
-        availableLimit: double.parse(_limitController.text) - double.parse(_balanceController.text),
-        currentBalance: double.parse(_balanceController.text),
+        creditLimit: creditLimit,
+        availableLimit: creditLimit - currentBalance,
+        currentBalance: currentBalance,
         closingDay: _closingDate.day,
         dueDay: _dueDate.day,
         cardColor: _selectedColor,

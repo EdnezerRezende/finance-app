@@ -2,12 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/transaction.dart';
 import '../services/supabase_service.dart';
+import 'encryption_provider.dart';
 
 class TransactionProvider with ChangeNotifier {
   List<Transaction> _transactions = [];
   bool _isLoading = false;
   String? _error;
   String? _currentGroupId;
+  EncryptionProvider? _encryptionProvider;
 
   List<Transaction> get transactions => _transactions;
   bool get isLoading => _isLoading;
@@ -21,6 +23,11 @@ class TransactionProvider with ChangeNotifier {
       _transactions.clear(); // Limpar dados antigos
       notifyListeners();
     }
+  }
+
+  // Setter para o encryption provider
+  void setEncryptionProvider(EncryptionProvider encryptionProvider) {
+    _encryptionProvider = encryptionProvider;
   }
   
   List<Transaction> getExpensesByMonth(DateTime selectedMonth) {
@@ -87,7 +94,18 @@ class TransactionProvider with ChangeNotifier {
 
     try {
       final data = await SupabaseService.getExpenses(month: month, groupId: _currentGroupId);
-      _transactions = data.map((json) => Transaction.fromSupabase(json)).toList();
+      
+      // Descriptografar dados se a criptografia estiver habilitada
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        _transactions = data.map((json) => Transaction.fromSupabaseEncrypted(
+          json, 
+          _encryptionProvider!.decryptField, 
+          _encryptionProvider!.decryptNumericField
+        )).toList();
+      } else {
+        _transactions = data.map((json) => Transaction.fromSupabase(json)).toList();
+      }
+      
       _transactions.sort((a, b) => b.date.compareTo(a.date));
     } catch (e) {
       _error = 'Erro ao carregar transações: $e';
@@ -164,8 +182,34 @@ class TransactionProvider with ChangeNotifier {
         groupId: _currentGroupId,
       );
 
-      final data = await SupabaseService.insertExpense(newTransaction.toSupabase());
-      final savedTransaction = Transaction.fromSupabase(data);
+      // Criptografar dados antes de salvar se a criptografia estiver habilitada
+      Map<String, dynamic> transactionData;
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        debugPrint('🔐 Criptografia HABILITADA - Criptografando transação');
+        debugPrint('🔐 Dados originais: ${newTransaction.description} - ${newTransaction.amount}');
+        transactionData = newTransaction.toSupabaseEncrypted(
+          _encryptionProvider!.encryptField,
+          _encryptionProvider!.encryptNumericField
+        );
+        debugPrint('🔐 Dados criptografados: ${transactionData['description']} - ${transactionData['amount']}');
+      } else {
+        debugPrint('❌ Criptografia DESABILITADA - Salvando dados sem criptografia');
+        transactionData = newTransaction.toSupabase();
+      }
+      
+      final data = await SupabaseService.insertExpense(transactionData);
+      
+      // Descriptografar dados ao criar o objeto de retorno
+      Transaction savedTransaction;
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        savedTransaction = Transaction.fromSupabaseEncrypted(
+          data,
+          _encryptionProvider!.decryptField,
+          _encryptionProvider!.decryptNumericField
+        );
+      } else {
+        savedTransaction = Transaction.fromSupabase(data);
+      }
       
       _transactions.add(savedTransaction);
       _transactions.sort((a, b) => b.date.compareTo(a.date));

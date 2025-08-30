@@ -2,12 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/credit_card.dart';
 import '../services/supabase_service.dart';
+import 'encryption_provider.dart';
 
 class CreditCardProvider with ChangeNotifier {
   List<CreditCard> _creditCards = [];
   bool _isLoading = false;
   String? _error;
   String? _currentGroupId;
+  EncryptionProvider? _encryptionProvider;
 
   List<CreditCard> get creditCards => _creditCards;
   bool get isLoading => _isLoading;
@@ -21,6 +23,11 @@ class CreditCardProvider with ChangeNotifier {
       _creditCards.clear(); // Limpar dados antigos
       notifyListeners();
     }
+  }
+
+  // Setter para o encryption provider
+  void setEncryptionProvider(EncryptionProvider encryptionProvider) {
+    _encryptionProvider = encryptionProvider;
   }
 
   double get totalLimit => _creditCards.fold(0, (sum, card) => sum + card.creditLimit);
@@ -51,7 +58,17 @@ class CreditCardProvider with ChangeNotifier {
       }
       final selectedMonth = month ?? DateTime.now();
       final data = await SupabaseService.getCreditCards(groupId: _currentGroupId!, month: selectedMonth);
-      _creditCards = data.map((json) => CreditCard.fromSupabase(json)).toList();
+      
+      // Descriptografar dados se a criptografia estiver habilitada
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        _creditCards = data.map((json) => CreditCard.fromSupabaseEncrypted(
+          json, 
+          _encryptionProvider!.decryptField, 
+          _encryptionProvider!.decryptNumericField
+        )).toList();
+      } else {
+        _creditCards = data.map((json) => CreditCard.fromSupabase(json)).toList();
+      }
     } catch (e) {
       _error = 'Erro ao carregar cartões: $e';
       debugPrint('Error loading credit cards: $e');
@@ -94,8 +111,32 @@ class CreditCardProvider with ChangeNotifier {
         groupId: _currentGroupId,
       );
 
-      final data = await SupabaseService.insertCreditCard(newCard.toSupabase());
-      final savedCard = CreditCard.fromSupabase(data);
+      // Criptografar dados se a criptografia estiver habilitada
+      Map<String, dynamic> cardData;
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        cardData = newCard.toSupabaseEncrypted(
+          _encryptionProvider!.encryptField, 
+          _encryptionProvider!.encryptNumericField
+        );
+        debugPrint('CreditCardProvider: Salvando cartão com criptografia habilitada');
+      } else {
+        cardData = newCard.toSupabase();
+        debugPrint('CreditCardProvider: Salvando cartão sem criptografia');
+      }
+      
+      final data = await SupabaseService.insertCreditCard(cardData);
+      
+      // Descriptografar dados retornados se necessário
+      CreditCard savedCard;
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        savedCard = CreditCard.fromSupabaseEncrypted(
+          data, 
+          _encryptionProvider!.decryptField, 
+          _encryptionProvider!.decryptNumericField
+        );
+      } else {
+        savedCard = CreditCard.fromSupabase(data);
+      }
       
       _creditCards.add(savedCard);
     } catch (e) {
@@ -119,7 +160,20 @@ class CreditCardProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await SupabaseService.updateCreditCard(card.id, card.toSupabase());
+      // Criptografar dados se a criptografia estiver habilitada
+      Map<String, dynamic> cardData;
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        cardData = card.toSupabaseEncrypted(
+          _encryptionProvider!.encryptField, 
+          _encryptionProvider!.encryptNumericField
+        );
+        debugPrint('CreditCardProvider: Atualizando cartão com criptografia habilitada');
+      } else {
+        cardData = card.toSupabase();
+        debugPrint('CreditCardProvider: Atualizando cartão sem criptografia');
+      }
+      
+      await SupabaseService.updateCreditCard(card.id, cardData);
       
       final index = _creditCards.indexWhere((c) => c.id == card.id);
       if (index != -1) {

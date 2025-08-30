@@ -1,12 +1,14 @@
 import 'package:flutter/foundation.dart';
 import '../models/finance.dart';
 import '../services/supabase_service.dart';
+import 'encryption_provider.dart';
 
 class FinanceProvider with ChangeNotifier {
   List<Finance> _finances = [];
   bool _isLoading = false;
   String? _error;
   String? _currentGroupId;
+  EncryptionProvider? _encryptionProvider;
 
   List<Finance> get finances => _finances;
   bool get isLoading => _isLoading;
@@ -20,6 +22,11 @@ class FinanceProvider with ChangeNotifier {
       _finances.clear(); // Limpar dados antigos
       notifyListeners();
     }
+  }
+
+  // Setter para o encryption provider
+  void setEncryptionProvider(EncryptionProvider encryptionProvider) {
+    _encryptionProvider = encryptionProvider;
   }
 
   // Filtrar por tipo
@@ -76,7 +83,17 @@ class FinanceProvider with ChangeNotifier {
 
     try {
       final data = await SupabaseService.getFinanceRecords(groupId: _currentGroupId);
-      _finances = data.map((json) => Finance.fromSupabase(json)).toList();
+      
+      // Descriptografar dados se a criptografia estiver habilitada
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        _finances = data.map((json) => Finance.fromSupabaseEncrypted(
+          json, 
+          _encryptionProvider!.decryptField, 
+          _encryptionProvider!.decryptNumericField
+        )).toList();
+      } else {
+        _finances = data.map((json) => Finance.fromSupabase(json)).toList();
+      }
     } catch (e) {
       _error = 'Erro ao carregar financiamentos: $e';
       debugPrint('Error loading finances: $e');
@@ -106,8 +123,34 @@ class FinanceProvider with ChangeNotifier {
     try {
       // Adicionar group ID ao financiamento
       final financeWithGroup = finance.copyWith(groupId: _currentGroupId);
-      final data = await SupabaseService.insertFinance(financeWithGroup.toSupabase());
-      final newFinance = Finance.fromSupabase(data);
+      
+      // Criptografar dados antes de salvar se a criptografia estiver habilitada
+      Map<String, dynamic> financeData;
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        debugPrint('🔐 Criptografia HABILITADA - Criptografando financiamento');
+        financeData = financeWithGroup.toSupabaseEncrypted(
+          _encryptionProvider!.encryptField,
+          _encryptionProvider!.encryptNumericField
+        );
+      } else {
+        debugPrint('❌ Criptografia DESABILITADA - Salvando dados sem criptografia');
+        financeData = financeWithGroup.toSupabase();
+      }
+      
+      final data = await SupabaseService.insertFinance(financeData);
+      
+      // Descriptografar dados ao criar o objeto de retorno
+      Finance newFinance;
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        newFinance = Finance.fromSupabaseEncrypted(
+          data,
+          _encryptionProvider!.decryptField,
+          _encryptionProvider!.decryptNumericField
+        );
+      } else {
+        newFinance = Finance.fromSupabase(data);
+      }
+      
       _finances.insert(0, newFinance);
     } catch (e) {
       _error = 'Erro ao adicionar financiamento: $e';

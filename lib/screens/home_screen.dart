@@ -5,9 +5,10 @@ import '../providers/transaction_provider.dart';
 import '../providers/credit_card_provider.dart';
 import '../providers/installment_provider.dart';
 import '../providers/ai_provider.dart';
-import '../providers/date_provider.dart';
-import '../providers/group_provider.dart';
 import '../providers/finance_provider.dart';
+import '../providers/group_provider.dart';
+import '../providers/date_provider.dart';
+import '../providers/encryption_provider.dart';
 import '../widgets/balance_card.dart';
 import '../widgets/transaction_item.dart';
 import '../widgets/credit_card_widget.dart';
@@ -38,6 +39,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _initializeApp() async {
     final groupProvider = Provider.of<GroupProvider>(context, listen: false);
     final dateProvider = Provider.of<DateProvider>(context, listen: false);
+    final encryptionProvider = Provider.of<EncryptionProvider>(context, listen: false);
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    final financeProvider = Provider.of<FinanceProvider>(context, listen: false);
+    final creditCardProvider = Provider.of<CreditCardProvider>(context, listen: false);
+    
+    // Inicializar criptografia primeiro
+    await encryptionProvider.initializeEncryption();
+    
+    // Configurar encryption provider nos providers que precisam
+    transactionProvider.setEncryptionProvider(encryptionProvider);
+    financeProvider.setEncryptionProvider(encryptionProvider);
+    creditCardProvider.setEncryptionProvider(encryptionProvider);
     
     // Carregar grupos do usuário primeiro
     await groupProvider.loadUserGroups();
@@ -81,10 +94,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final financeProvider = Provider.of<FinanceProvider>(context, listen: false);
       final creditCardProvider = Provider.of<CreditCardProvider>(context, listen: false);
       final installmentProvider = Provider.of<InstallmentProvider>(context, listen: false);
+      final encryptionProvider = Provider.of<EncryptionProvider>(context, listen: false);
       
       transactionProvider.setCurrentGroup(selectedGroupId);
+      transactionProvider.setEncryptionProvider(encryptionProvider);
       financeProvider.setCurrentGroup(selectedGroupId);
+      financeProvider.setEncryptionProvider(encryptionProvider);
       creditCardProvider.setCurrentGroup(selectedGroupId);
+      creditCardProvider.setEncryptionProvider(encryptionProvider);
       installmentProvider.setCurrentGroup(selectedGroupId);
     }
   }

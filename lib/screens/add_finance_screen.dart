@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/finance.dart';
 import '../providers/finance_provider.dart';
+import '../utils/currency_formatter.dart';
 
 class AddFinanceScreen extends StatefulWidget {
   final Finance? finance;
@@ -36,10 +37,10 @@ class _AddFinanceScreenState extends State<AddFinanceScreen> {
   void _populateFields() {
     final finance = widget.finance!;
     _selectedType = FinanceType.fromString(finance.tipo);
-    _valorTotalController.text = finance.valorTotal?.toStringAsFixed(2) ?? '';
-    _saldoDevedorController.text = finance.saldoDevedor?.toStringAsFixed(2) ?? '';
-    _valorDescontoController.text = finance.valorDesconto?.toStringAsFixed(2) ?? '';
-    _valorPagoController.text = finance.valorPago?.toStringAsFixed(2) ?? '';
+    _valorTotalController.text = finance.valorTotal != null ? BrazilianCurrencyInputFormatter.formatValue(finance.valorTotal!) : '';
+    _saldoDevedorController.text = finance.saldoDevedor != null ? BrazilianCurrencyInputFormatter.formatValue(finance.saldoDevedor!) : '';
+    _valorDescontoController.text = finance.valorDesconto != null ? BrazilianCurrencyInputFormatter.formatValue(finance.valorDesconto!) : '';
+    _valorPagoController.text = finance.valorPago != null ? BrazilianCurrencyInputFormatter.formatValue(finance.valorPago!) : '';
     _quantidadeParcelasController.text = finance.quantidadeParcelas?.toString() ?? '';
   }
 
@@ -270,34 +271,27 @@ class _AddFinanceScreenState extends State<AddFinanceScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          TextFormField(
+          CurrencyTextField(
             controller: controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-            ],
-            decoration: InputDecoration(
-              hintText: '0,00',
-              prefixText: 'R\$ ',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.indigo.shade600),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
+            showCurrencySymbol: true,
             validator: required ? (value) {
               if (value == null || value.isEmpty) {
                 return '$label é obrigatório';
               }
-              if (double.tryParse(value) == null) {
+              final parsedValue = BrazilianCurrencyInputFormatter.parseValue(value);
+              if (parsedValue == null || parsedValue < 0) {
                 return 'Digite um valor válido';
               }
               return null;
-            } : null,
+            } : (value) {
+              if (value != null && value.isNotEmpty) {
+                final parsedValue = BrazilianCurrencyInputFormatter.parseValue(value);
+                if (parsedValue == null || parsedValue < 0) {
+                  return 'Digite um valor válido';
+                }
+              }
+              return null;
+            },
           ),
         ],
       ),
@@ -376,12 +370,12 @@ class _AddFinanceScreenState extends State<AddFinanceScreen> {
       id: widget.finance?.id ?? 0,
       createdAt: widget.finance?.createdAt ?? DateTime.now(),
       tipo: _selectedType.displayName,
-      valorTotal: double.tryParse(_valorTotalController.text),
-      saldoDevedor: double.tryParse(_saldoDevedorController.text),
+      valorTotal: BrazilianCurrencyInputFormatter.parseValue(_valorTotalController.text),
+      saldoDevedor: BrazilianCurrencyInputFormatter.parseValue(_saldoDevedorController.text),
       quantidadeParcelas: int.tryParse(_quantidadeParcelasController.text),
       parcelasQuitadas: widget.finance?.parcelasQuitadas ?? [],
-      valorDesconto: double.tryParse(_valorDescontoController.text),
-      valorPago: double.tryParse(_valorPagoController.text),
+      valorDesconto: BrazilianCurrencyInputFormatter.parseValue(_valorDescontoController.text),
+      valorPago: BrazilianCurrencyInputFormatter.parseValue(_valorPagoController.text),
       userId: null,
     );
 
