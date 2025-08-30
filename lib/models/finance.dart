@@ -43,8 +43,31 @@ class Finance {
     );
   }
 
+  /// Cria Finance a partir de dados do Supabase com descriptografia
+  factory Finance.fromSupabaseEncrypted(
+    Map<String, dynamic> json,
+    String Function(String) decryptField,
+    double Function(String) decryptNumericField,
+  ) {
+    return Finance(
+      id: json['id'] as int,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      tipo: decryptField(json['tipo']), // Descriptografar tipo
+      valorTotal: json['valorTotal'] != null ? decryptNumericField(json['valorTotal']) : null,
+      saldoDevedor: json['saldoDevedor'] != null ? decryptNumericField(json['saldoDevedor']) : null,
+      quantidadeParcelas: json['quantidadeParcelas'] as int?,
+      parcelasQuitadas: json['parcelasQuitadas'] != null 
+          ? List<int>.from(json['parcelasQuitadas'] as List) 
+          : null,
+      valorDesconto: json['valorDesconto'] != null ? decryptNumericField(json['valorDesconto']) : null,
+      valorPago: json['valorPago'] != null ? decryptNumericField(json['valorPago']) : null,
+      userId: json['userId'] as String?,
+      groupId: json['group_id'] as String?,
+    );
+  }
+
   Map<String, dynamic> toSupabase() {
-    return {
+    final data = <String, dynamic>{
       'tipo': tipo,
       'valorTotal': valorTotal,
       'saldoDevedor': saldoDevedor,
@@ -55,6 +78,38 @@ class Finance {
       'userId': userId,
       'group_id': groupId,
     };
+    
+    // Só incluir id se não for 0 (novo registro)
+    if (id != 0) {
+      data['id'] = id;
+    }
+    
+    return data;
+  }
+
+  /// Converte para Map do Supabase com campos criptografados
+  Map<String, dynamic> toSupabaseEncrypted(
+    String Function(String) encryptField,
+    String Function(double) encryptNumericField,
+  ) {
+    final data = <String, dynamic>{
+      'tipo': encryptField(tipo), // Criptografar tipo
+      'valorTotal': valorTotal != null ? encryptNumericField(valorTotal!) : null,
+      'saldoDevedor': saldoDevedor != null ? encryptNumericField(saldoDevedor!) : null,
+      'quantidadeParcelas': quantidadeParcelas,
+      'parcelasQuitadas': parcelasQuitadas,
+      'valorDesconto': valorDesconto != null ? encryptNumericField(valorDesconto!) : null,
+      'valorPago': valorPago != null ? encryptNumericField(valorPago!) : null,
+      'userId': userId,
+      'group_id': groupId,
+    };
+    
+    // Só incluir id se não for 0 (novo registro)
+    if (id != 0) {
+      data['id'] = id;
+    }
+    
+    return data;
   }
 
   // Getters úteis

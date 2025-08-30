@@ -54,7 +54,7 @@ class Installment {
   factory Installment.fromSupabase(Map<String, dynamic> json) {
     return Installment(
       id: json['id'].toString(),
-      valor: (json['valor'] ?? 0.0).toDouble(),
+      valor: _parseDoubleValue(json['valor']),
       parcelas: json['parcelas'] ?? 1,
       parcelasPagas: json['parcelasPagas'] ?? 0,
       descricao: json['Descricao'] ?? '',
@@ -65,6 +65,17 @@ class Installment {
       createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
     );
+  }
+
+  // Helper method to safely parse double values
+  static double _parseDoubleValue(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value) ?? 0.0;
+    }
+    return 0.0;
   }
 
   Installment copyWith({

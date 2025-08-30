@@ -41,9 +41,9 @@ class Transaction {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  // Convert to Supabase format (expense table)
+  // Convert to Supabase format
   Map<String, dynamic> toSupabase() {
-    return {
+    final data = <String, dynamic>{
       'type': type,
       'amount': amount,
       'description': description,
@@ -52,8 +52,48 @@ class Transaction {
       'isPago': isPago,
       'userId': userId,
       'group_id': groupId,
-      'created_at': createdAt.toIso8601String(),
     };
+    
+    // Só incluir id se não for 0 (novo registro)
+    if (id != 0) {
+      data['id'] = id;
+    }
+    
+    // Só incluir created_at se existir
+    if (createdAt != null) {
+      data['created_at'] = createdAt!.toIso8601String();
+    }
+    
+    return data;
+  }
+
+  // Convert to Supabase format with encryption
+  Map<String, dynamic> toSupabaseEncrypted(
+    String Function(String) encryptField,
+    String Function(double) encryptNumericField,
+  ) {
+    final data = <String, dynamic>{
+      'type': type,
+      'amount': encryptNumericField(amount), // Criptografar valor como TEXT
+      'description': encryptField(description), // Criptografar descrição
+      'category': category,
+      'date': date.toIso8601String(),
+      'isPago': isPago,
+      'userId': userId,
+      'group_id': groupId,
+    };
+    
+    // Só incluir id se não for 0 (novo registro)
+    if (id != 0) {
+      data['id'] = id;
+    }
+    
+    // Só incluir created_at se existir
+    if (createdAt != null) {
+      data['created_at'] = createdAt!.toIso8601String();
+    }
+    
+    return data;
   }
 
   // Create from Supabase data (expense table)
@@ -69,6 +109,26 @@ class Transaction {
       userId: json['userId'] ?? '',
       groupId: json['group_id'],
       createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+    );
+  }
+
+  /// Cria Transaction a partir de dados do Supabase com descriptografia
+  factory Transaction.fromSupabaseEncrypted(
+    Map<String, dynamic> json,
+    String Function(String) decryptField,
+    double Function(String) decryptNumericField,
+  ) {
+    return Transaction(
+      id: json['id'],
+      type: json['type'] ?? 'expense',
+      amount: decryptNumericField(json['amount']), // Descriptografar valor
+      description: decryptField(json['description']), // Descriptografar descrição
+      category: json['category'] ?? 'Outros',
+      date: DateTime.parse(json['date']),
+      isPago: json['isPago'] ?? false,
+      userId: json['userId'],
+      groupId: json['group_id'],
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
     );
   }
 

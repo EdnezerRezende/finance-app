@@ -68,22 +68,92 @@ class CreditCard {
     };
   }
 
+  /// Converte para Map do Supabase com campos criptografados
+  Map<String, dynamic> toSupabaseEncrypted(
+    String Function(String) encryptField,
+    String Function(double) encryptNumericField,
+  ) {
+    return {
+      'id': id,
+      'card_name': encryptField(name), // Criptografar nome do cartão
+      'card_number_masked': cardNumberMasked, // Manter mascarado (não sensível)
+      'bank_name': bankName, // Manter banco (não sensível)
+      'card_type': cardType,
+      'credit_limit': encryptNumericField(creditLimit), // Criptografar limite
+      'available_limit': encryptNumericField(availableLimit), // Criptografar limite disponível
+      'current_balance': encryptNumericField(currentBalance), // Criptografar saldo atual
+      'closing_day': closingDay,
+      'due_day': dueDay,
+      'is_active': isActive,
+      'card_color': cardColor,
+      'group_id': groupId,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+
   // Create from Supabase data
   factory CreditCard.fromSupabase(Map<String, dynamic> json) {
     return CreditCard(
-      id: json['id'],
-      name: json['card_name'],
-      cardNumberMasked: json['card_number_masked'] ?? '**** **** **** ****',
-      bankName: json['bank_name'] ?? '',
-      cardType: json['card_type'] ?? 'credit',
-      creditLimit: (json['credit_limit'] ?? 0.0).toDouble(),
-      availableLimit: (json['available_limit'] ?? 0.0).toDouble(),
-      currentBalance: (json['current_balance'] ?? 0.0).toDouble(),
-      closingDay: json['closing_day'] ?? 1,
-      dueDay: json['due_day'] ?? 10,
+      id: json['id']?.toString() ?? '',
+      name: json['card_name']?.toString() ?? '',
+      cardNumberMasked: json['card_number_masked']?.toString() ?? '**** **** **** ****',
+      bankName: json['bank_name']?.toString() ?? '',
+      cardType: json['card_type']?.toString() ?? 'credit',
+      creditLimit: _parseDoubleValue(json['credit_limit']),
+      availableLimit: _parseDoubleValue(json['available_limit']),
+      currentBalance: _parseDoubleValue(json['current_balance']),
+      closingDay: _parseIntValue(json['closing_day'], 1),
+      dueDay: _parseIntValue(json['due_day'], 10),
       isActive: json['is_active'] ?? true,
-      cardColor: json['card_color'] ?? '#2196F3',
-      groupId: json['group_id'],
+      cardColor: json['card_color']?.toString() ?? '#2196F3',
+      groupId: json['group_id']?.toString(),
+      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
+    );
+  }
+
+  // Helper methods to safely parse values
+  static double _parseDoubleValue(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value) ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  static int _parseIntValue(dynamic value, int defaultValue) {
+    if (value == null) return defaultValue;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) {
+      return int.tryParse(value) ?? defaultValue;
+    }
+    return defaultValue;
+  }
+
+  /// Cria CreditCard a partir de dados do Supabase com descriptografia
+  factory CreditCard.fromSupabaseEncrypted(
+    Map<String, dynamic> json,
+    String Function(String) decryptField,
+    double Function(String) decryptNumericField,
+  ) {
+    return CreditCard(
+      id: json['id']?.toString() ?? '',
+      name: decryptField(json['card_name']?.toString() ?? ''), // Descriptografar nome
+      cardNumberMasked: json['card_number_masked']?.toString() ?? '**** **** **** ****',
+      bankName: json['bank_name']?.toString() ?? '',
+      cardType: json['card_type']?.toString() ?? 'credit',
+      creditLimit: decryptNumericField(json['credit_limit']?.toString() ?? '0'), // Descriptografar limite
+      availableLimit: decryptNumericField(json['available_limit']?.toString() ?? '0'), // Descriptografar limite disponível
+      currentBalance: decryptNumericField(json['current_balance']?.toString() ?? '0'), // Descriptografar saldo
+      closingDay: _parseIntValue(json['closing_day'], 1),
+      dueDay: _parseIntValue(json['due_day'], 10),
+      isActive: json['is_active'] ?? true,
+      cardColor: json['card_color']?.toString() ?? '#2196F3',
+      groupId: json['group_id']?.toString(),
       createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
     );

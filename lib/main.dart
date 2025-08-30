@@ -8,6 +8,7 @@ import '../providers/installment_provider.dart';
 import '../providers/date_provider.dart';
 import '../providers/finance_provider.dart';
 import '../providers/group_provider.dart';
+import '../providers/encryption_provider.dart';
 import 'services/supabase_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/auth_screen.dart';
@@ -28,6 +29,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (context) => DateProvider()),
         ChangeNotifierProvider(create: (context) => GroupProvider()),
+        ChangeNotifierProvider(create: (context) => EncryptionProvider()),
         ChangeNotifierProvider(create: (context) => TransactionProvider()),
         ChangeNotifierProvider(create: (context) => CreditCardProvider()),
         ChangeNotifierProvider(create: (context) => InstallmentProvider()),
