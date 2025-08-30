@@ -371,12 +371,13 @@ class SupabaseService {
   }
 
   // Installment methods (parcelas) - Nova estrutura da tabela cartao
-  static Future<List<Map<String, dynamic>>> getInstallments({DateTime? month, String? groupId}) async {
+  static Future<List<Map<String, dynamic>>> getInstallments({DateTime? month, required String groupId}) async {
     if (!isLoggedIn) throw Exception('User not authenticated');
 
     var query = client
         .from('cartao')
-        .select('*');
+        .select('*')
+        .eq('group_id', groupId);
 
     if (month != null) {
       query = query
@@ -384,20 +385,17 @@ class SupabaseService {
           .eq('ano', month.year);
     }
 
-    if (groupId != null) {
-      query = query.eq('group_id', groupId);
-    }
-
     final response = await query.order('mes', ascending: true).order('ano', ascending: true);
     return response;
   }
 
-  static Future<List<Map<String, dynamic>>> getUpcomingInstallments(int days, {String? groupId}) async {
+  static Future<List<Map<String, dynamic>>> getUpcomingInstallments(int days, {required String groupId}) async {
     final now = DateTime.now();
     final endDate = now.add(Duration(days: days));
     var query = client
         .from('cartao')
         .select('*')
+        .eq('group_id', groupId)
         .eq('status', 'pending')
         .gte('ano', now.year)
         .lte('ano', endDate.year);
@@ -448,16 +446,19 @@ class SupabaseService {
   }
 
   // Credit card methods (simplified for basic card info)
-  static Future<List<Map<String, dynamic>>> getCreditCards({String? groupId}) async {
+  static Future<List<Map<String, dynamic>>> getCreditCards({required String groupId, DateTime? month}) async {
     var query = client
         .from('cartao')
-        .select();
+        .select()
+        .eq('group_id', groupId);
     
-    if (groupId != null) {
-      query = query.eq('group_id', groupId);
+    if (month != null) {
+      query = query
+          .eq('mes', month.month)
+          .eq('ano', month.year);
     }
     
-    final response = await query.order('created_at', ascending: false);
+    final response = await query.order('mes', ascending: true).order('ano', ascending: true);
     return response;
   }
 
@@ -483,7 +484,20 @@ class SupabaseService {
         ''')
         .eq('user_id', currentUser!.id)
         .eq('status', 'active')
-        .order('groups.created_at', ascending: false);
+        .order('joined_at', ascending: false);
+    
+    // Para cada grupo, buscar a contagem de membros usando query direta
+    for (var item in response) {
+      final groupId = item['group_id'];
+      final memberCountResponse = await client
+          .from('group_members')
+          .select('id')
+          .eq('group_id', groupId)
+          .eq('status', 'active');
+      
+      item['member_count'] = (memberCountResponse as List).length;
+    }
+    
     return response;
   }
 

@@ -27,7 +27,7 @@ class CreditCardProvider with ChangeNotifier {
   double get totalBalance => _creditCards.fold(0, (sum, card) => sum + card.currentBalance);
   double get totalAvailableLimit => _creditCards.fold(0, (sum, card) => sum + card.availableLimit);
 
-  Future<void> loadCreditCards() async {
+  Future<void> loadCreditCards({DateTime? month}) async {
     if (!SupabaseService.isLoggedIn) {
       _error = 'Usuário não autenticado';
       notifyListeners();
@@ -45,7 +45,12 @@ class CreditCardProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await SupabaseService.getCreditCards(groupId: _currentGroupId);
+      if (_currentGroupId == null) {
+        _error = 'Nenhum grupo selecionado';
+        return;
+      }
+      final selectedMonth = month ?? DateTime.now();
+      final data = await SupabaseService.getCreditCards(groupId: _currentGroupId!, month: selectedMonth);
       _creditCards = data.map((json) => CreditCard.fromSupabase(json)).toList();
     } catch (e) {
       _error = 'Erro ao carregar cartões: $e';

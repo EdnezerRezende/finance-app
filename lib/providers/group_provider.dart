@@ -38,36 +38,15 @@ class GroupProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) throw Exception('Usuário não autenticado');
-
-      // First get the group IDs for the user
-      final memberResponse = await _supabase
-          .from('group_members')
-          .select('group_id')
-          .eq('user_id', userId)
-          .eq('status', 'active');
-
-      final groupIds = (memberResponse as List)
-          .map((item) => item['group_id'] as String)
-          .toList();
-
-      if (groupIds.isEmpty) {
-        _userGroups = [];
-        return;
-      }
-
-      // Then get the groups
-      final response = await _supabase
-          .from('groups')
-          .select('''
-            id, name, description, created_by, created_at, updated_at
-          ''')
-          .inFilter('id', groupIds);
-
-      _userGroups = (response as List)
-          .map((json) => Group.fromJson(json))
-          .toList();
+      final response = await SupabaseService.getUserGroups();
+      
+      _userGroups = response.map((item) {
+        final groupData = item['groups'] as Map<String, dynamic>;
+        // Adicionar member_count ao groupData
+        groupData['member_count'] = item['member_count'] ?? 0;
+        groupData['is_owner'] = groupData['created_by'] == _supabase.auth.currentUser?.id;
+        return Group.fromJson(groupData);
+      }).toList();
 
     } catch (e) {
       _error = e.toString();

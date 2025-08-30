@@ -37,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _initializeApp() async {
     final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+    final dateProvider = Provider.of<DateProvider>(context, listen: false);
     
     // Carregar grupos do usuário primeiro
     await groupProvider.loadUserGroups();
@@ -46,8 +47,9 @@ class _HomeScreenState extends State<HomeScreen> {
       groupProvider.selectGroup(groupProvider.userGroups.first.id);
     }
     
-    // Configurar listeners para mudanças de grupo
+    // Configurar listeners para mudanças de grupo e data
     groupProvider.addListener(_onGroupChanged);
+    dateProvider.addListener(_onDateChanged);
     
     // Carregar dados se há um grupo selecionado
     if (groupProvider.selectedGroupId != null) {
@@ -59,6 +61,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final groupProvider = Provider.of<GroupProvider>(context, listen: false);
     if (groupProvider.selectedGroupId != null) {
       _updateProvidersWithGroup();
+      _loadData();
+    }
+  }
+
+  void _onDateChanged() {
+    final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+    if (groupProvider.selectedGroupId != null) {
       _loadData();
     }
   }
@@ -90,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     await Future.wait([
       transactionProvider.loadTransactions(month: dateProvider.selectedMonth),
-      creditCardProvider.loadCreditCards(),
+      creditCardProvider.loadCreditCards(month: dateProvider.selectedMonth),
       installmentProvider.loadInstallments(month: dateProvider.selectedMonth),
       financeProvider.loadFinances(),
       aiProvider.loadRecommendations(),
@@ -106,7 +115,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+    final dateProvider = Provider.of<DateProvider>(context, listen: false);
     groupProvider.removeListener(_onGroupChanged);
+    dateProvider.removeListener(_onDateChanged);
     super.dispose();
   }
 

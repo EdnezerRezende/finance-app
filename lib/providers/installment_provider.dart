@@ -89,7 +89,11 @@ class InstallmentProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await SupabaseService.getInstallments(month: month, groupId: _currentGroupId);
+      if (_currentGroupId == null) {
+        _error = 'Nenhum grupo selecionado';
+        return;
+      }
+      final data = await SupabaseService.getInstallments(month: month, groupId: _currentGroupId!);
       _installments = data.map((json) {
         // Flatten the joined data
         final flatJson = Map<String, dynamic>.from(json);
