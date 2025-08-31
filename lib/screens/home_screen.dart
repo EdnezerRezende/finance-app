@@ -3,22 +3,23 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/credit_card_provider.dart';
-import '../providers/installment_provider.dart';
 import '../providers/ai_provider.dart';
+import '../providers/installment_provider.dart';
+import '../providers/date_provider.dart';
 import '../providers/finance_provider.dart';
 import '../providers/group_provider.dart';
-import '../providers/date_provider.dart';
 import '../providers/encryption_provider.dart';
+import '../providers/notification_provider.dart';
 import '../widgets/balance_card.dart';
-import '../widgets/transaction_item.dart';
-import '../widgets/credit_card_widget.dart';
 import '../widgets/group_selector.dart';
-import 'add_transaction_screen.dart';
-import 'transactions_screen.dart';
-import 'ai_advisor_screen.dart';
-import 'reports_screen.dart';
-import 'credit_cards_screen.dart';
-import 'finances_screen.dart';
+import '../widgets/notification_badge.dart';
+import '../widgets/transaction_item.dart';
+import '../widgets/user_profile_menu.dart';
+import '../screens/transactions_screen.dart';
+import '../screens/reports_screen.dart';
+import '../screens/credit_cards_screen.dart';
+import '../screens/finances_screen.dart';
+import '../screens/notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,12 +41,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final groupProvider = Provider.of<GroupProvider>(context, listen: false);
     final dateProvider = Provider.of<DateProvider>(context, listen: false);
     final encryptionProvider = Provider.of<EncryptionProvider>(context, listen: false);
+    final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final financeProvider = Provider.of<FinanceProvider>(context, listen: false);
     final creditCardProvider = Provider.of<CreditCardProvider>(context, listen: false);
     
     // Inicializar criptografia primeiro
     await encryptionProvider.initializeEncryption();
+    
+    // Inicializar sistema de notificações
+    await notificationProvider.initialize();
     
     // Configurar encryption provider nos providers que precisam
     transactionProvider.setEncryptionProvider(encryptionProvider);
@@ -222,9 +227,9 @@ class _HomeScreenState extends State<HomeScreen> {
               floating: false,
               pinned: true,
               backgroundColor: const Color(0xFF2E7D32),
-              actions: const [
-                GroupSelector(),
-                SizedBox(width: 8),
+              actions: [
+                const UserProfileMenu(),
+                const SizedBox(width: 16),
               ],
               flexibleSpace: FlexibleSpaceBar(
                 title: Text(
@@ -291,7 +296,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AddTransactionScreen(),
+                      builder: (context) => const TransactionsScreen(),
                     ),
                   ),
                 ),

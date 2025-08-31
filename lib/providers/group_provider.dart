@@ -190,6 +190,13 @@ class GroupProvider with ChangeNotifier {
             'invited_by': currentUserId,
           });
 
+      // Criar notificação de convite para o usuário convidado
+      await _createGroupInviteNotification(
+        targetUserId: targetUserId,
+        groupId: groupId,
+        inviterUserId: currentUserId,
+      );
+
       // Recarregar membros
       await loadGroupMembers(groupId);
       return true;
@@ -201,6 +208,50 @@ class GroupProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // Cria notificação de convite para grupo
+  Future<void> _createGroupInviteNotification({
+    required String targetUserId,
+    required String groupId,
+    required String inviterUserId,
+  }) async {
+    try {
+      // Buscar informações do grupo
+      final groupInfo = _userGroups.firstWhere(
+        (group) => group.id == groupId,
+        orElse: () => throw Exception('Grupo não encontrado'),
+      );
+
+      // Buscar informações do usuário que está convidando
+      final inviterResponse = await _supabase
+          .from('usuario')
+          .select('nome')
+          .eq('id', inviterUserId)
+          .single();
+
+      final inviterName = inviterResponse['nome'] ?? 'Usuário';
+
+      // Criar a notificação
+      await _supabase.from('notifications').insert({
+        'user_id': targetUserId,
+        'group_id': groupId,
+        'type': 'group_invite',
+        'title': 'Convite para grupo',
+        'message': '$inviterName convidou você para participar do grupo "${groupInfo.name}"',
+        'data': {
+          'group_id': groupId,
+          'group_name': groupInfo.name,
+          'inviter_name': inviterName,
+          'inviter_id': inviterUserId,
+          'action_required': true,
+        },
+        'expires_at': DateTime.now().add(const Duration(days: 7)).toIso8601String(),
+      });
+    } catch (e) {
+      // Log do erro mas não falha o convite
+      print('Erro ao criar notificação de convite: $e');
     }
   }
 
@@ -340,10 +391,11 @@ class GroupProvider with ChangeNotifier {
   }
 
   // Limpa dados ao fazer logout
-  void clear() {
+  void clearData() {
     _userGroups.clear();
     _selectedGroup = null;
     _groupMembers.clear();
+    _isLoading = false;
     _error = null;
     notifyListeners();
   }
