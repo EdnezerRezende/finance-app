@@ -52,19 +52,27 @@ class _HomeScreenState extends State<HomeScreen> {
     financeProvider.setEncryptionProvider(encryptionProvider);
     creditCardProvider.setEncryptionProvider(encryptionProvider);
     
-    // Carregar grupos do usuário primeiro
+    // Carregar grupos do usuário primeiro e aguardar conclusão
     await groupProvider.loadUserGroups();
+    
+    // Aguardar até que os grupos sejam carregados
+    while (groupProvider.isLoading) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
     
     // Se há grupos disponíveis, selecionar o primeiro automaticamente
     if (groupProvider.userGroups.isNotEmpty && groupProvider.selectedGroupId == null) {
       groupProvider.selectGroup(groupProvider.userGroups.first.id);
+      
+      // Configurar providers com o grupo selecionado
+      _updateProvidersWithGroup();
     }
     
     // Configurar listeners para mudanças de grupo e data
     groupProvider.addListener(_onGroupChanged);
     dateProvider.addListener(_onDateChanged);
     
-    // Carregar dados se há um grupo selecionado
+    // Carregar dados apenas se há um grupo selecionado
     if (groupProvider.selectedGroupId != null) {
       await _loadData();
     }
