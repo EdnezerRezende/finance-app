@@ -273,6 +273,33 @@ class TransactionProvider with ChangeNotifier {
     }
   }
 
+  Future<void> togglePaymentStatus(int transactionId) async {
+    if (!SupabaseService.isLoggedIn) {
+      _error = 'Usuário não autenticado';
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final transactionIndex = _transactions.indexWhere((t) => t.id == transactionId);
+      if (transactionIndex == -1) return;
+
+      final transaction = _transactions[transactionIndex];
+      final updatedTransaction = transaction.copyWith(isPago: !transaction.isPago);
+
+      // Update in database
+      await SupabaseService.updateExpense(transactionId, updatedTransaction.toSupabase());
+      
+      // Update local state
+      _transactions[transactionIndex] = updatedTransaction;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Erro ao atualizar status de pagamento: $e';
+      debugPrint('Error toggling payment status: $e');
+      notifyListeners();
+    }
+  }
+
   Map<String, double> getCategoryTotals() {
     final Map<String, double> totals = {};
     

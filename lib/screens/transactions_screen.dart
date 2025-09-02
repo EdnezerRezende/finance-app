@@ -175,6 +175,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
               return TransactionItem(
                 transaction: transaction,
                 onDelete: () => provider.deleteTransaction(transaction.id),
+                onTogglePayment: () => provider.togglePaymentStatus(transaction.id),
               );
             },
           ),
@@ -258,6 +259,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
               return TransactionItem(
                 transaction: transaction,
                 onDelete: () => provider.deleteTransaction(transaction.id),
+                onTogglePayment: () => provider.togglePaymentStatus(transaction.id),
               );
             },
           ),

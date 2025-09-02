@@ -7,12 +7,14 @@ class TransactionItem extends StatelessWidget {
   final Transaction transaction;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onTogglePayment;
 
   const TransactionItem({
     super.key,
     required this.transaction,
     this.onTap,
     this.onDelete,
+    this.onTogglePayment,
   });
 
   @override
@@ -27,6 +29,9 @@ class TransactionItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: transaction.isPago 
+          ? Border.all(color: Colors.green.withOpacity(0.3), width: 2)
+          : null,
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -86,6 +91,25 @@ class TransactionItem extends StatelessWidget {
                       color: Colors.grey.shade500,
                     ),
                   ),
+                  if (transaction.isPago) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        'PAGO',
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -101,21 +125,42 @@ class TransactionItem extends StatelessWidget {
                     color: color,
                   ),
                 ),
-                if (onDelete != null) ...[
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: onDelete,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.delete_outline,
-                        color: Colors.red.shade400,
-                        size: 18,
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Payment toggle button (only for expenses)
+                    if (transaction.isExpense && onTogglePayment != null) ...[
+                      InkWell(
+                        onTap: onTogglePayment,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            transaction.isPago ? Icons.check_circle : Icons.check_circle_outline,
+                            color: transaction.isPago ? Colors.green.shade600 : Colors.grey.shade400,
+                            size: 20,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
+                      if (onDelete != null) const SizedBox(width: 8),
+                    ],
+                    // Delete button
+                    if (onDelete != null)
+                      InkWell(
+                        onTap: onDelete,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.delete_outline,
+                            color: Colors.red.shade400,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ],

@@ -426,6 +426,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () {
                     // Implementar edição de transação
                   },
+                  onTogglePayment: () => transactionProvider.togglePaymentStatus(transaction.id),
                 )),
             ],
           ),
