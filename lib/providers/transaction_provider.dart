@@ -141,7 +141,18 @@ class TransactionProvider with ChangeNotifier {
 
     try {
       final data = await SupabaseService.getExpensesByDateRange(startDate, endDate, groupId: _currentGroupId);
-      _transactions = data.map((json) => Transaction.fromSupabase(json)).toList();
+      
+      // Descriptografar dados se a criptografia estiver habilitada
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        _transactions = data.map((json) => Transaction.fromSupabaseEncrypted(
+          json, 
+          _encryptionProvider!.decryptField, 
+          _encryptionProvider!.decryptNumericField
+        )).toList();
+      } else {
+        _transactions = data.map((json) => Transaction.fromSupabase(json)).toList();
+      }
+      
       _transactions.sort((a, b) => b.date.compareTo(a.date));
     } catch (e) {
       _error = 'Erro ao carregar transações: $e';
