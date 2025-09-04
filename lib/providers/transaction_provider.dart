@@ -245,7 +245,22 @@ class TransactionProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await SupabaseService.updateExpense(transaction.id, transaction.toSupabase());
+      // Criptografar dados antes de atualizar se a criptografia estiver habilitada
+      Map<String, dynamic> transactionData;
+      if (_encryptionProvider?.isEncryptionEnabled == true) {
+        debugPrint('🔐 Criptografia HABILITADA - Criptografando transação atualizada');
+        debugPrint('🔐 Dados originais: ${transaction.description} - ${transaction.amount}');
+        transactionData = transaction.toSupabaseEncrypted(
+          _encryptionProvider!.encryptField,
+          _encryptionProvider!.encryptNumericField
+        );
+        debugPrint('🔐 Dados criptografados: ${transactionData['description']} - ${transactionData['amount']}');
+      } else {
+        debugPrint('❌ Criptografia DESABILITADA - Atualizando dados sem criptografia');
+        transactionData = transaction.toSupabase();
+      }
+      
+      await SupabaseService.updateExpense(transaction.id, transactionData);
       
       final index = _transactions.indexWhere((t) => t.id == transaction.id);
       if (index != -1) {

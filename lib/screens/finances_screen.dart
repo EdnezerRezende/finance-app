@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/finance.dart';
 import '../providers/finance_provider.dart';
 import '../widgets/installment_manager.dart';
+import '../utils/dialog_utils.dart';
 import 'add_finance_screen.dart';
 
 class FinancesScreen extends StatefulWidget {
@@ -497,39 +498,21 @@ class _FinancesScreenState extends State<FinancesScreen> with SingleTickerProvid
     }
   }
 
-  void _showDeleteConfirmation(Finance finance, FinanceProvider provider) {
-    showDialog(
+  Future<void> _showDeleteConfirmation(Finance finance, FinanceProvider provider) async {
+    final confirmed = await DialogUtils.showDeleteConfirmationDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Confirmar Exclusão',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          'Tem certeza que deseja excluir este ${finance.tipo.toLowerCase()}?',
-          style: GoogleFonts.poppins(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await provider.deleteFinance(finance.id);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Financiamento excluído com sucesso!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Excluir'),
-          ),
-        ],
-      ),
+      title: 'Excluir Registro',
+      message: 'Tem certeza que deseja excluir "${finance.tipo}"?\n\nEsta ação não pode ser desfeita.',
     );
+
+    if (confirmed) {
+      provider.deleteFinance(finance.id!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registro excluído com sucesso'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 }

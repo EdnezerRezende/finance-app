@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../providers/notification_provider.dart';
 import '../providers/group_provider.dart';
 import '../models/notification.dart' as app_notification;
-import '../widgets/notification_list_item.dart';
+import '../services/notification_service.dart';
+import '../utils/dialog_utils.dart';
 
 /// Tela principal de notificações
 class NotificationsScreen extends StatefulWidget {
@@ -236,22 +238,26 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               ),
             ),
             confirmDismiss: (direction) => _confirmDismiss(context, notification),
-            onDismissed: (direction) {
-              Provider.of<NotificationProvider>(context, listen: false)
-                  .deleteNotification(notification.id);
-              
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Notificação removida'),
-                  duration: Duration(seconds: 2),
-                ),
+            onDismissed: (direction) async {
+              final confirmed = await DialogUtils.showDeleteConfirmationDialog(
+                context: context,
+                title: 'Remover Notificação',
+                message: 'Tem certeza que deseja remover esta notificação?\n\nEsta ação não pode ser desfeita.',
               );
+              
+              if (confirmed) {
+                Provider.of<NotificationProvider>(context, listen: false)
+                    .deleteNotification(notification.id);
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Notificação removida'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
             },
-            child: NotificationListItem(
-              notification: notification,
-              onTap: () => _handleNotificationTap(context, notification),
-              onDismiss: () => _dismissNotification(context, notification),
-            ),
+            child: _buildNotificationListItem(notification),
           );
         },
       ),
@@ -351,16 +357,24 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   void _rejectGroupInvite(BuildContext context, app_notification.Notification notification) async {
     try {
-      // Marcar notificação como lida e remover
-      final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
-      await notificationProvider.deleteNotification(notification.id);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Convite recusado.'),
-          backgroundColor: Colors.orange,
-        ),
+      final confirmed = await DialogUtils.showDeleteConfirmationDialog(
+        context: context,
+        title: 'Remover Notificação',
+        message: 'Tem certeza que deseja remover esta notificação?\n\nEsta ação não pode ser desfeita.',
       );
+      
+      if (confirmed) {
+        // Marcar notificação como lida e remover
+        final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+        await notificationProvider.deleteNotification(notification.id);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notificação removida'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -551,9 +565,17 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  void _dismissNotification(BuildContext context, app_notification.Notification notification) {
-    Provider.of<NotificationProvider>(context, listen: false)
-        .deleteNotification(notification.id);
+  Future<void> _dismissNotification(BuildContext context, app_notification.Notification notification) async {
+    final confirmed = await DialogUtils.showDeleteConfirmationDialog(
+      context: context,
+      title: 'Remover Notificação',
+      message: 'Tem certeza que deseja remover esta notificação?\n\nEsta ação não pode ser desfeita.',
+    );
+    
+    if (confirmed) {
+      Provider.of<NotificationProvider>(context, listen: false)
+          .deleteNotification(notification.id);
+    }
   }
 
   void _showMarkAllAsReadDialog(BuildContext context) {
@@ -583,6 +605,67 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ],
       ),
     );
+  }
+
+  Widget _buildNotificationListItem(app_notification.Notification notification) {
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: notification.isRead ? Colors.grey[300] : Theme.of(context).primaryColor,
+        child: Icon(
+          _getNotificationIcon(notification.type),
+          color: notification.isRead ? Colors.grey[600] : Colors.white,
+        ),
+      ),
+      title: Text(
+        notification.title,
+        style: TextStyle(
+          fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+        ),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(notification.message),
+          const SizedBox(height: 4),
+          Text(
+            DateFormat('dd/MM/yyyy HH:mm').format(notification.createdAt),
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+      onTap: () => _handleNotificationTap(context, notification),
+      trailing: PopupMenuButton<String>(
+        onSelected: (action) {
+          if (action == 'dismiss') {
+            _dismissNotification(context, notification);
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem(
+            value: 'dismiss',
+            child: Text('Remover'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getNotificationIcon(app_notification.NotificationType type) {
+    switch (type) {
+      case app_notification.NotificationType.groupInvite:
+        return Icons.group_add;
+      case app_notification.NotificationType.expenseDue:
+        return Icons.payment;
+      case app_notification.NotificationType.creditCardDue:
+        return Icons.credit_card;
+      case app_notification.NotificationType.financeDue:
+        return Icons.account_balance;
+      default:
+        return Icons.notifications;
+    }
   }
 
   void _handleMenuAction(BuildContext context, String action) {

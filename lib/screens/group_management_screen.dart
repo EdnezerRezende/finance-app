@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/group_provider.dart';
 import '../models/group.dart';
-import '../models/group_member.dart';
+import '../services/supabase_service.dart';
+import '../utils/dialog_utils.dart';
 
 class GroupManagementScreen extends StatefulWidget {
   const GroupManagementScreen({super.key});
@@ -470,31 +471,18 @@ class _GroupManagementScreenState extends State<GroupManagementScreen>
     );
   }
 
-  void _showDeleteConfirmation(Group group) {
-    showDialog(
+  Future<void> _showDeleteConfirmation(Group group) async {
+    Navigator.of(context).pop(); // Fechar dialog de opções
+    
+    final confirmed = await DialogUtils.showDeleteConfirmationDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir Grupo'),
-        content: Text(
-          'Tem certeza que deseja excluir o grupo "${group.name}"? '
-          'Esta ação não pode ser desfeita e todos os dados compartilhados serão perdidos.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => _deleteGroup(group),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
+      title: 'Excluir Grupo',
+      message: 'Tem certeza que deseja excluir o grupo "${group.name}"?\n\nTodos os dados do grupo serão perdidos permanentemente. Esta ação não pode ser desfeita.',
     );
+
+    if (confirmed) {
+      await _deleteGroup(group);
+    }
   }
 
   Future<void> _createGroup() async {
@@ -589,8 +577,6 @@ class _GroupManagementScreenState extends State<GroupManagementScreen>
   }
 
   Future<void> _deleteGroup(Group group) async {
-    Navigator.of(context).pop(); // Fechar dialog
-    
     final groupProvider = context.read<GroupProvider>();
     
     try {
@@ -599,7 +585,7 @@ class _GroupManagementScreenState extends State<GroupManagementScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Grupo excluído com sucesso'),
-          backgroundColor: Color(0xFF2E7D32),
+          backgroundColor: Colors.green,
         ),
       );
     } catch (e) {

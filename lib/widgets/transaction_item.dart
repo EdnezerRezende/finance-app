@@ -7,6 +7,7 @@ class TransactionItem extends StatelessWidget {
   final Transaction transaction;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
   final VoidCallback? onTogglePayment;
 
   const TransactionItem({
@@ -14,6 +15,7 @@ class TransactionItem extends StatelessWidget {
     required this.transaction,
     this.onTap,
     this.onDelete,
+    this.onEdit,
     this.onTogglePayment,
   });
 
@@ -143,8 +145,23 @@ class TransactionItem extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (onDelete != null) const SizedBox(width: 8),
+                      const SizedBox(width: 8),
                     ],
+                    // Edit button
+                    if (onEdit != null)
+                      InkWell(
+                        onTap: onEdit,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.edit_outlined,
+                            color: Colors.blue.shade400,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    if (onEdit != null && onDelete != null) const SizedBox(width: 8),
                     // Delete button
                     if (onDelete != null)
                       InkWell(
