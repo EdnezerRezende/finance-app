@@ -5,7 +5,9 @@ import '../providers/transaction_provider.dart';
 import '../providers/date_provider.dart';
 import '../models/transaction.dart';
 import '../widgets/transaction_item.dart';
+import '../utils/dialog_utils.dart';
 import 'add_transaction_screen.dart';
+import 'edit_transaction_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -174,7 +176,8 @@ class _TransactionsScreenState extends State<TransactionsScreen>
               final transaction = monthExpenses[index];
               return TransactionItem(
                 transaction: transaction,
-                onDelete: () => provider.deleteTransaction(transaction.id),
+                onDelete: () => _confirmDeleteTransaction(transaction, provider),
+                onEdit: () => _editTransaction(transaction),
                 onTogglePayment: () => provider.togglePaymentStatus(transaction.id),
               );
             },
@@ -258,7 +261,8 @@ class _TransactionsScreenState extends State<TransactionsScreen>
               final transaction = monthIncomes[index];
               return TransactionItem(
                 transaction: transaction,
-                onDelete: () => provider.deleteTransaction(transaction.id),
+                onDelete: () => _confirmDeleteTransaction(transaction, provider),
+                onEdit: () => _editTransaction(transaction),
                 onTogglePayment: () => provider.togglePaymentStatus(transaction.id),
               );
             },
@@ -388,5 +392,39 @@ class _TransactionsScreenState extends State<TransactionsScreen>
   Future<void> _reloadTransactionsForMonth(DateTime selectedMonth) async {
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     await transactionProvider.loadTransactions(month: selectedMonth);
+  }
+
+  void _editTransaction(Transaction transaction) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditTransactionScreen(transaction: transaction),
+      ),
+    ).then((_) {
+      // Reload transactions after editing
+      final dateProvider = Provider.of<DateProvider>(context, listen: false);
+      _reloadTransactionsForMonth(dateProvider.selectedMonth);
+    });
+  }
+
+  Future<void> _confirmDeleteTransaction(Transaction transaction, TransactionProvider provider) async {
+    final confirmed = await DialogUtils.showDeleteConfirmationDialog(
+      context: context,
+      title: 'Excluir Transação',
+      message: 'Tem certeza que deseja excluir a transação "${transaction.description}"?\n\nEsta ação não pode ser desfeita.',
+    );
+
+    if (confirmed) {
+      await provider.deleteTransaction(transaction.id);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Transação excluída com sucesso'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
   }
 }
