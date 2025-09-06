@@ -7,6 +7,8 @@ class EncryptionProvider with ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
   
   String? _userEncryptionKey;
+  String? _groupEncryptionKey;
+  String? _currentGroupId;
   bool _isEncryptionEnabled = false;
   bool _isInitialized = false;
   String? _error;
@@ -16,8 +18,62 @@ class EncryptionProvider with ChangeNotifier {
   bool get isInitialized => _isInitialized;
   String? get error => _error;
   String? get userEncryptionKey => _userEncryptionKey;
+  String? get groupEncryptionKey => _groupEncryptionKey;
+  String? get currentGroupId => _currentGroupId;
 
-  /// Inicializa a criptografia para o usuário atual com regeneração forçada
+  /// Inicializa a criptografia para o grupo atual
+  Future<void> initializeGroupEncryption(String groupId, {bool forceRegenerate = false}) async {
+    try {
+      _error = null;
+      debugPrint('🔐 Iniciando inicialização da criptografia para grupo: $groupId');
+      
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        throw Exception('Usuário não autenticado');
+      }
+
+      _currentGroupId = groupId;
+      
+      // Usar groupId como senha base para gerar chave compartilhada
+      final groupPassword = 'group_key_$groupId';
+      debugPrint('🔐 Senha do grupo gerada: ${groupPassword.length} chars');
+      
+      // Gerar/obter chave de criptografia do grupo
+      _groupEncryptionKey = await EncryptionService.getGroupKey(groupId, groupPassword);
+      
+      if (_groupEncryptionKey != null) {
+        // Validar a chave antes de habilitar
+        try {
+          final testData = 'test_group_validation';
+          final encrypted = EncryptionService.encryptField(testData, _groupEncryptionKey!);
+          final decrypted = EncryptionService.decryptField(encrypted, _groupEncryptionKey!);
+          
+          if (decrypted == testData) {
+            _isEncryptionEnabled = true;
+            _isInitialized = true;
+            debugPrint('✅ Criptografia do grupo inicializada e validada com sucesso!');
+          } else {
+            throw Exception('Falha na validação da criptografia do grupo: dados não coincidem');
+          }
+        } catch (validationError) {
+          debugPrint('❌ Erro na validação da criptografia do grupo: $validationError');
+          throw Exception('Falha ao validar chave de criptografia do grupo');
+        }
+      } else {
+        throw Exception('Falha ao obter chave de criptografia do grupo');
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Erro na inicialização da criptografia do grupo: $e');
+      _error = e.toString();
+      _isEncryptionEnabled = false;
+      _isInitialized = false;
+      notifyListeners();
+    }
+  }
+
+  /// Inicializa a criptografia para o usuário atual com regeneração forçada (método legado)
   Future<void> initializeEncryption({bool forceRegenerate = false}) async {
     try {
       _error = null;
@@ -91,82 +147,94 @@ class EncryptionProvider with ChangeNotifier {
     await initializeEncryption(forceRegenerate: true);
   }
 
-  /// Criptografa um campo de texto
+  /// Criptografa um campo de texto usando chave do grupo (preferencial) ou usuário
   String encryptField(String data) {
-    if (!_isEncryptionEnabled || _userEncryptionKey == null || data.isEmpty) {
+    if (!_isEncryptionEnabled || data.isEmpty) {
+      return data;
+    }
+    
+    // Usar chave do grupo se disponível, senão usar chave do usuário
+    final keyToUse = _groupEncryptionKey ?? _userEncryptionKey;
+    if (keyToUse == null) {
       return data;
     }
     
     try {
-      return EncryptionService.encryptField(data, _userEncryptionKey!);
+      return EncryptionService.encryptField(data, keyToUse);
     } catch (e) {
       debugPrint('Erro ao criptografar campo: $e');
       return data; // Retorna dados originais em caso de erro
     }
   }
 
-  /// Descriptografa um campo de texto com melhor tratamento de erro iOS
+  /// Descriptografa um campo de texto usando chave do grupo (preferencial) ou usuário
   String decryptField(String encryptedData) {
-    if (!_isEncryptionEnabled || _userEncryptionKey == null || encryptedData.isEmpty) {
+    if (!_isEncryptionEnabled || encryptedData.isEmpty) {
       return encryptedData;
     }
     
-    try {
-      final result = EncryptionService.decryptField(encryptedData, _userEncryptionKey!);
-      return result;
-    } catch (e) {
-      debugPrint('❌ Erro ao descriptografar campo: $e');
-      debugPrint('❌ Dados problemáticos: ${encryptedData.substring(0, math.min(20, encryptedData.length))}...');
-      
-      // Se for um erro crítico de chave, marcar para reinicialização
-      if (e.toString().contains('Invalid key') || e.toString().contains('key')) {
-        debugPrint('🔄 Erro de chave detectado, marcando para reinicialização...');
-        _error = 'Erro de chave de criptografia - reinicialização necessária';
-        _isEncryptionEnabled = false;
-        notifyListeners();
+    // Tentar primeiro com chave do grupo, depois com chave do usuário
+    final keysToTry = [_groupEncryptionKey, _userEncryptionKey].where((k) => k != null).cast<String>();
+    
+    for (final key in keysToTry) {
+      try {
+        final result = EncryptionService.decryptField(encryptedData, key);
+        return result;
+      } catch (e) {
+        debugPrint('❌ Tentativa de descriptografia falhou com chave: ${key.substring(0, 8)}...');
+        continue;
       }
-      
-      return encryptedData; // Retorna dados originais em caso de erro
     }
+    
+    debugPrint('❌ Falha ao descriptografar com todas as chaves disponíveis');
+    debugPrint('❌ Dados problemáticos: ${encryptedData.substring(0, math.min(20, encryptedData.length))}...');
+    
+    return encryptedData; // Retorna dados originais em caso de erro
   }
 
-  /// Criptografa um valor numérico
+  /// Criptografa um valor numérico usando chave do grupo (preferencial) ou usuário
   String encryptNumericField(double value) {
-    if (!_isEncryptionEnabled || _userEncryptionKey == null) {
+    if (!_isEncryptionEnabled) {
+      return value.toString();
+    }
+    
+    // Usar chave do grupo se disponível, senão usar chave do usuário
+    final keyToUse = _groupEncryptionKey ?? _userEncryptionKey;
+    if (keyToUse == null) {
       return value.toString();
     }
     
     try {
-      return EncryptionService.encryptNumericField(value, _userEncryptionKey!);
+      return EncryptionService.encryptNumericField(value, keyToUse);
     } catch (e) {
       debugPrint('Erro ao criptografar valor numérico: $e');
       return value.toString();
     }
   }
 
-  /// Descriptografa um valor numérico com melhor tratamento de erro iOS
+  /// Descriptografa um valor numérico usando chave do grupo (preferencial) ou usuário
   double decryptNumericField(String encryptedValue) {
-    if (!_isEncryptionEnabled || _userEncryptionKey == null) {
+    if (!_isEncryptionEnabled) {
       return double.tryParse(encryptedValue) ?? 0.0;
     }
     
-    try {
-      final result = EncryptionService.decryptNumericField(encryptedValue, _userEncryptionKey!);
-      return result;
-    } catch (e) {
-      debugPrint('❌ Erro ao descriptografar valor numérico: $e');
-      debugPrint('❌ Valor problemático: $encryptedValue');
-      
-      // Se for um erro crítico de chave, marcar para reinicialização
-      if (e.toString().contains('Invalid key') || e.toString().contains('key')) {
-        debugPrint('🔄 Erro de chave detectado, marcando para reinicialização...');
-        _error = 'Erro de chave de criptografia - reinicialização necessária';
-        _isEncryptionEnabled = false;
-        notifyListeners();
+    // Tentar primeiro com chave do grupo, depois com chave do usuário
+    final keysToTry = [_groupEncryptionKey, _userEncryptionKey].where((k) => k != null).cast<String>();
+    
+    for (final key in keysToTry) {
+      try {
+        final result = EncryptionService.decryptNumericField(encryptedValue, key);
+        return result;
+      } catch (e) {
+        debugPrint('❌ Tentativa de descriptografia numérica falhou com chave: ${key.substring(0, 8)}...');
+        continue;
       }
-      
-      return double.tryParse(encryptedValue) ?? 0.0;
     }
+    
+    debugPrint('❌ Falha ao descriptografar valor numérico com todas as chaves disponíveis');
+    debugPrint('❌ Valor problemático: $encryptedValue');
+    
+    return double.tryParse(encryptedValue) ?? 0.0;
   }
 
   /// Verifica se um campo está criptografado

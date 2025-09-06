@@ -88,7 +88,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               if (provider.unreadCount == 0) return const SizedBox.shrink();
               
               return TextButton(
-                onPressed: () => _showMarkAllAsReadDialog(context),
+                onPressed: () => _handleMenuAction(context, 'mark_all_read'),
                 child: const Text('Marcar todas como lidas'),
               );
             },
@@ -107,8 +107,16 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               const PopupMenuItem(
                 value: 'clean_expired',
                 child: ListTile(
-                  leading: Icon(Icons.cleaning_services),
+                  leading: Icon(Icons.delete_sweep),
                   title: Text('Limpar expiradas'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'mark_all_read',
+                child: ListTile(
+                  leading: Icon(Icons.mark_email_read),
+                  title: Text('Marcar todas como lidas'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -637,16 +645,36 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ],
       ),
       onTap: () => _handleNotificationTap(context, notification),
+      onLongPress: () => _markAsRead(notification),
       trailing: PopupMenuButton<String>(
         onSelected: (action) {
           if (action == 'dismiss') {
             _dismissNotification(context, notification);
+          } else if (action == 'mark_read') {
+            _markAsRead(notification);
           }
         },
         itemBuilder: (context) => [
+          if (!notification.isRead)
+            const PopupMenuItem(
+              value: 'mark_read',
+              child: Row(
+                children: [
+                  Icon(Icons.mark_email_read, size: 16),
+                  SizedBox(width: 8),
+                  Text('Marcar como lida'),
+                ],
+              ),
+            ),
           const PopupMenuItem(
             value: 'dismiss',
-            child: Text('Remover'),
+            child: Row(
+              children: [
+                Icon(Icons.delete, size: 16),
+                SizedBox(width: 8),
+                Text('Remover'),
+              ],
+            ),
           ),
         ],
       ),
@@ -668,6 +696,30 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     }
   }
 
+  Future<void> _markAsRead(app_notification.Notification notification) async {
+    if (notification.isRead) return;
+    
+    try {
+      final provider = Provider.of<NotificationProvider>(context, listen: false);
+      await provider.markAsRead(notification.id);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notificação marcada como lida'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao marcar como lida: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _handleMenuAction(BuildContext context, String action) {
     final provider = Provider.of<NotificationProvider>(context, listen: false);
     
@@ -682,6 +734,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         provider.cleanExpiredNotifications().then((_) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Notificações expiradas removidas')),
+          );
+        });
+        break;
+      case 'mark_all_read':
+        provider.markAllAsRead().then((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Todas as notificações marcadas como lidas')),
           );
         });
         break;

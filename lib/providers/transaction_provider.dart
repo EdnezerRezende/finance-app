@@ -17,10 +17,16 @@ class TransactionProvider with ChangeNotifier {
   String? get currentGroupId => _currentGroupId;
 
   // Setter para atualizar o grupo atual
-  void setCurrentGroup(String? groupId) {
+  void setCurrentGroup(String? groupId) async {
     if (_currentGroupId != groupId) {
       _currentGroupId = groupId;
       _transactions.clear(); // Limpar dados antigos
+      
+      // Inicializar criptografia do grupo se disponível
+      if (groupId != null && _encryptionProvider != null) {
+        await _encryptionProvider!.initializeGroupEncryption(groupId);
+      }
+      
       notifyListeners();
     }
   }
