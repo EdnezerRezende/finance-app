@@ -20,6 +20,7 @@ import '../screens/reports_screen.dart';
 import '../screens/credit_cards_screen.dart';
 import '../screens/finances_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../screens/group_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -71,6 +72,11 @@ class _HomeScreenState extends State<HomeScreen> {
       
       // Configurar providers com o grupo selecionado
       _updateProvidersWithGroup();
+    } else if (groupProvider.userGroups.isEmpty) {
+      // Usuário não tem grupos - mostrar dialog para criar grupo
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showCreateGroupDialog();
+      });
     }
     
     // Configurar listeners para mudanças de grupo e data
@@ -637,6 +643,131 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showCreateGroupDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // Usuário deve tomar uma decisão
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.group_add,
+                color: Colors.blue.shade600,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              const Text('Criar Grupo'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Você ainda não faz parte de nenhum grupo.',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Para usar o aplicativo, é necessário criar ou participar de um grupo financeiro.',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.blue.shade600,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Grupos permitem compartilhar despesas e organizar finanças em família ou com amigos.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Usuário escolheu não criar grupo agora - pode ficar na tela sem funcionalidade
+              },
+              child: Text(
+                'Mais Tarde',
+                style: GoogleFonts.poppins(
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToCreateGroup();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade600,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: Text(
+                'Criar Grupo',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _navigateToCreateGroup() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const GroupManagementScreen(),
+      ),
+    ).then((_) {
+      // Quando voltar da tela de criação de grupo, recarregar grupos
+      final groupProvider = Provider.of<GroupProvider>(context, listen: false);
+      groupProvider.loadUserGroups().then((_) {
+        // Se agora tem grupos, selecionar o primeiro
+        if (groupProvider.userGroups.isNotEmpty && groupProvider.selectedGroupId == null) {
+          groupProvider.selectGroup(groupProvider.userGroups.first.id);
+          _updateProvidersWithGroup();
+          _loadData();
+        }
+      });
+    });
   }
 
 } 
