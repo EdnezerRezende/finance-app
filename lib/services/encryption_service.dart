@@ -14,7 +14,97 @@ class EncryptionService {
   static const int _saltLength = 16; // 128 bits
   static const int _iterations = 10000; // PBKDF2 iterations
 
-  /// Gera uma chave de criptografia única para o usuário com salt fixo para consistência
+  /// Gera uma chave de criptografia única para o grupo com salt fixo para consistência
+  static Future<String> _generateGroupKey(String groupId, String groupPassword) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Usar salt determinístico baseado no groupId para garantir consistência entre usuários do grupo
+    final saltString = 'salt_group_$groupId';
+    final hmacForSalt = Hmac(sha256, utf8.encode('deterministic_group_salt_key'));
+    final saltDigest = hmacForSalt.convert(utf8.encode(saltString));
+    final salt = saltDigest.bytes.take(_saltLength).toList();
+    
+    debugPrint('🔑 Gerando chave com salt determinístico para grupo: $groupId');
+    debugPrint('🔑 Salt (primeiros 8 bytes): ${salt.take(8).toList()}');
+    
+    // Derivar chave usando PBKDF2
+    final key = _deriveKey(groupPassword, salt, _iterations, _keyLength);
+    final keyBase64 = base64Encode(key);
+    
+    debugPrint('🔑 Chave gerada (primeiros 8 bytes): ${key.take(8).toList()}');
+    
+    // Armazenar chave criptografada localmente (opcional para performance)
+    await prefs.setString('${_keyPrefix}group_$groupId', keyBase64);
+    await prefs.setString('${_saltPrefix}group_$groupId', base64Encode(salt));
+    
+    return keyBase64;
+  }
+
+  /// Obtém a chave de criptografia do grupo com validação
+  static Future<String?> getGroupKey(String groupId, String groupPassword) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Tentar obter chave existente
+      String? existingKey = prefs.getString('${_keyPrefix}group_$groupId');
+      
+      if (existingKey != null) {
+        // Validar se a chave é válida (base64 de 32 bytes)
+        try {
+          final keyBytes = base64Decode(existingKey);
+          if (keyBytes.length == _keyLength) {
+            debugPrint('✅ Chave existente válida encontrada para grupo: $groupId');
+            return existingKey;
+          } else {
+            debugPrint('❌ Chave existente inválida (tamanho: ${keyBytes.length}), regenerando...');
+          }
+        } catch (e) {
+          debugPrint('❌ Erro ao decodificar chave existente: $e');
+        }
+      }
+      
+      // Gerar nova chave
+      debugPrint('🔄 Gerando nova chave para grupo: $groupId');
+      return await _generateGroupKey(groupId, groupPassword);
+    } catch (e) {
+      debugPrint('❌ Erro ao obter chave do grupo: $e');
+      return null;
+    }
+  }
+
+  /// Obtém a chave de criptografia do usuário com validação iOS (mantido para compatibilidade)
+  static Future<String?> getUserKey(String userId, String userPassword) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Tentar obter chave existente
+      String? existingKey = prefs.getString('$_keyPrefix$userId');
+      
+      if (existingKey != null) {
+        // Validar se a chave é válida (base64 de 32 bytes)
+        try {
+          final keyBytes = base64Decode(existingKey);
+          if (keyBytes.length == _keyLength) {
+            debugPrint('✅ Chave existente válida encontrada para usuário: $userId');
+            return existingKey;
+          } else {
+            debugPrint('❌ Chave existente inválida (tamanho: ${keyBytes.length}), regenerando...');
+          }
+        } catch (e) {
+          debugPrint('❌ Erro ao decodificar chave existente: $e');
+        }
+      }
+      
+      // Gerar nova chave usando método legado
+      debugPrint('🔄 Gerando nova chave para usuário: $userId');
+      return await _generateUserKey(userId, userPassword);
+    } catch (e) {
+      debugPrint('❌ Erro ao obter chave do usuário: $e');
+      return null;
+    }
+  }
+
+  /// Gera uma chave de criptografia única para o usuário com salt fixo para consistência (método legado)
   static Future<String> _generateUserKey(String userId, String userPassword) async {
     final prefs = await SharedPreferences.getInstance();
     
@@ -38,38 +128,6 @@ class EncryptionService {
     await prefs.setString('$_saltPrefix$userId', base64Encode(salt));
     
     return keyBase64;
-  }
-
-  /// Obtém a chave de criptografia do usuário com validação iOS
-  static Future<String?> getUserKey(String userId, String userPassword) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      // Tentar obter chave existente
-      String? existingKey = prefs.getString('$_keyPrefix$userId');
-      
-      if (existingKey != null) {
-        // Validar se a chave é válida (base64 de 32 bytes)
-        try {
-          final keyBytes = base64Decode(existingKey);
-          if (keyBytes.length == _keyLength) {
-            debugPrint('✅ Chave existente válida encontrada para usuário: $userId');
-            return existingKey;
-          } else {
-            debugPrint('❌ Chave existente inválida (tamanho: ${keyBytes.length}), regenerando...');
-          }
-        } catch (e) {
-          debugPrint('❌ Erro ao decodificar chave existente: $e, regenerando...');
-        }
-      }
-      
-      // Gerar nova chave se não existir ou for inválida
-      debugPrint('🔑 Gerando nova chave para usuário: $userId');
-      return await _generateUserKey(userId, userPassword);
-    } catch (e) {
-      debugPrint('❌ Erro crítico ao obter chave do usuário: $e');
-      return null;
-    }
   }
 
   /// Criptografa um campo de texto
