@@ -93,6 +93,7 @@ class GroupProvider with ChangeNotifier {
       final newGroup = Group.fromJson(groupResponse);
 
       // Adicionar o criador como admin do grupo
+      final userEmail = _supabase.auth.currentUser?.email;
       await _supabase
           .from('group_members')
           .insert({
@@ -100,6 +101,7 @@ class GroupProvider with ChangeNotifier {
             'user_id': userId,
             'role': 'admin',
             'status': 'active',
+            'user_email': userEmail,
           });
 
       // Atualizar lista local
@@ -163,7 +165,11 @@ class GroupProvider with ChangeNotifier {
           .from('usuario')
           .select('id')
           .eq('email', userEmail)
-          .single();
+          .maybeSingle();
+
+      if (userResponse == null) {
+        throw Exception('Usuário com email "$userEmail" não encontrado');
+      }
 
       final targetUserId = userResponse['id'];
 
@@ -188,6 +194,7 @@ class GroupProvider with ChangeNotifier {
             'role': role,
             'status': 'active',
             'invited_by': currentUserId,
+            'user_email': userEmail,
           });
 
       // Criar notificação de convite para o usuário convidado
