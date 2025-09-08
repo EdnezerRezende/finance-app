@@ -103,7 +103,7 @@ class TransactionItem extends StatelessWidget {
                         border: Border.all(color: Colors.green.withOpacity(0.3)),
                       ),
                       child: Text(
-                        'PAGO',
+                        transaction.isExpense ? 'PAGO' : 'RECEBIDO',
                         style: GoogleFonts.poppins(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -131,8 +131,8 @@ class TransactionItem extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Payment toggle button (only for expenses)
-                    if (transaction.isExpense && onTogglePayment != null) ...[
+                    // Payment toggle button (for both expenses and income)
+                    if (onTogglePayment != null) ...[
                       InkWell(
                         onTap: onTogglePayment,
                         borderRadius: BorderRadius.circular(16),
