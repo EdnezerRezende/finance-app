@@ -155,6 +155,7 @@ class _CreditCardsScreenState extends State<CreditCardsScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "credit_cards_fab",
         onPressed: () {
           Navigator.push(
             context,

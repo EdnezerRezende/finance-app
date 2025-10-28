@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/credit_card_provider.dart';
+import '../providers/credit_card_master_provider.dart';
+import '../providers/credit_card_transaction_provider.dart';
 import '../providers/ai_provider.dart';
 import '../providers/installment_provider.dart';
 import '../providers/date_provider.dart';
@@ -17,10 +19,12 @@ import '../widgets/transaction_item.dart';
 import '../widgets/user_profile_menu.dart';
 import '../screens/transactions_screen.dart';
 import '../screens/reports_screen.dart';
-import '../screens/credit_cards_screen.dart';
+import '../screens/credit_card_summary_screen.dart';
 import '../screens/finances_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/group_management_screen.dart';
+import '../screens/bank_import_screen.dart';
+import '../screens/credit_card_transactions_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -53,29 +57,25 @@ class _HomeScreenState extends State<HomeScreen> {
     // Inicializar sistema de notificações
     await notificationProvider.initialize();
     
-    // Configurar encryption provider nos providers que precisam
-    transactionProvider.setEncryptionProvider(encryptionProvider);
-    financeProvider.setEncryptionProvider(encryptionProvider);
-    creditCardProvider.setEncryptionProvider(encryptionProvider);
-    
-    // Carregar grupos do usuário primeiro e aguardar conclusão
+    // Aguardar carregamento dos grupos
     await groupProvider.loadUserGroups();
-    
-    // Aguardar até que os grupos sejam carregados
-    while (groupProvider.isLoading) {
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
     
     // Se há grupos disponíveis, selecionar o primeiro automaticamente
     if (groupProvider.userGroups.isNotEmpty && groupProvider.selectedGroupId == null) {
       groupProvider.selectGroup(groupProvider.userGroups.first.id);
       
-      // Configurar providers com o grupo selecionado
-      _updateProvidersWithGroup();
+      // Configurar providers com o grupo selecionado após o frame atual
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _updateProvidersWithGroup();
+        }
+      });
     } else if (groupProvider.userGroups.isEmpty) {
       // Usuário não tem grupos - mostrar dialog para criar grupo
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showCreateGroupDialog();
+        if (mounted) {
+          _showCreateGroupDialog();
+        }
       });
     }
     
@@ -85,19 +85,31 @@ class _HomeScreenState extends State<HomeScreen> {
     
     // Carregar dados apenas se há um grupo selecionado
     if (groupProvider.selectedGroupId != null) {
-      await _loadData();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadData();
+        }
+      });
     }
   }
 
   void _onGroupChanged() {
+    if (!mounted) return;
+    
     final groupProvider = Provider.of<GroupProvider>(context, listen: false);
     if (groupProvider.selectedGroupId != null) {
-      _updateProvidersWithGroup();
-      _loadData();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _updateProvidersWithGroup();
+          _loadData();
+        }
+      });
     }
   }
 
   void _onDateChanged() {
+    if (!mounted) return;
+    
     final groupProvider = Provider.of<GroupProvider>(context, listen: false);
     if (groupProvider.selectedGroupId != null) {
       _loadData();
@@ -105,6 +117,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _updateProvidersWithGroup() {
+    if (!mounted) return; // Verificar se o widget ainda está montado
+    
     final groupProvider = Provider.of<GroupProvider>(context, listen: false);
     final selectedGroupId = groupProvider.selectedGroupId;
     
@@ -122,12 +136,22 @@ class _HomeScreenState extends State<HomeScreen> {
       creditCardProvider.setCurrentGroup(selectedGroupId);
       creditCardProvider.setEncryptionProvider(encryptionProvider);
       installmentProvider.setCurrentGroup(selectedGroupId);
+      
+      // Configurar novos providers
+      final creditCardMasterProvider = Provider.of<CreditCardMasterProvider>(context, listen: false);
+      final creditCardTransactionProvider = Provider.of<CreditCardTransactionProvider>(context, listen: false);
+      creditCardMasterProvider.setCurrentGroup(selectedGroupId);
+      creditCardTransactionProvider.setCurrentGroup(selectedGroupId);
     }
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
+    
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final creditCardProvider = Provider.of<CreditCardProvider>(context, listen: false);
+    final creditCardMasterProvider = Provider.of<CreditCardMasterProvider>(context, listen: false);
+    final creditCardTransactionProvider = Provider.of<CreditCardTransactionProvider>(context, listen: false);
     final installmentProvider = Provider.of<InstallmentProvider>(context, listen: false);
     final financeProvider = Provider.of<FinanceProvider>(context, listen: false);
     final aiProvider = Provider.of<AIProvider>(context, listen: false);
@@ -136,6 +160,11 @@ class _HomeScreenState extends State<HomeScreen> {
     await Future.wait([
       transactionProvider.loadTransactions(month: dateProvider.selectedMonth),
       creditCardProvider.loadCreditCards(month: dateProvider.selectedMonth),
+      creditCardMasterProvider.loadCards(),
+      creditCardTransactionProvider.loadTransactions(
+        month: dateProvider.selectedMonth.month,
+        year: dateProvider.selectedMonth.year,
+      ),
       installmentProvider.loadInstallments(month: dateProvider.selectedMonth),
       financeProvider.loadFinances(),
       aiProvider.loadRecommendations(),
@@ -314,6 +343,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   Icons.psychology,
                   Colors.blue,
                   () => setState(() => _currentIndex = 2),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickActionCard(
+                  'Importar Banco',
+                  Icons.account_balance,
+                  Colors.green,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BankImportScreen(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickActionCard(
+                  'Cartões',
+                  Icons.credit_card,
+                  Colors.orange,
+                  () => setState(() => _currentIndex = 3),
                 ),
               ),
             ],
@@ -575,7 +631,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCreditCardsTab() {
-    return const CreditCardsScreen();
+    return const CreditCardSummaryScreen();
   }
 
   Widget _buildFinancesTab() {

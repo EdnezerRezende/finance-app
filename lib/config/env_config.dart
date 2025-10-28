@@ -1,12 +1,12 @@
 class EnvConfig {
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://your-project.supabase.co',
+    defaultValue: 'https://dinrbvxflxmouisjpmfz.supabase.co',
   );
   
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'your-anon-key-here',
+    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpbnJidnhmbHhtb3Vpc2pwbWZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg2MTQ3ODIsImV4cCI6MjA2NDE5MDc4Mn0.T7Hhh7Hvo4GpgEycASUCqkQMRcgwFYJv5tHX_Ij39VY',
   );
   
   // Validação para garantir que as variáveis foram definidas

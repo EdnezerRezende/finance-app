@@ -88,6 +88,7 @@ class _AIAdvisorScreenState extends State<AIAdvisorScreen> {
                         ),
                         const SizedBox(width: 12),
                         FloatingActionButton(
+                          heroTag: "ai_advisor_fab",
                           onPressed: () => _askQuestion(aiProvider),
                           backgroundColor: Colors.blue.shade600,
                           child: const Icon(Icons.send, color: Colors.white),
