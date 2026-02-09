@@ -19,18 +19,31 @@ class CreditCardTransactionsScreen extends StatefulWidget {
   State<CreditCardTransactionsScreen> createState() => _CreditCardTransactionsScreenState();
 }
 
-class _CreditCardTransactionsScreenState extends State<CreditCardTransactionsScreen> {
+class _CreditCardTransactionsScreenState extends State<CreditCardTransactionsScreen> with SingleTickerProviderStateMixin {
   String? _selectedCardId;
   int _selectedMonth = DateTime.now().month;
   int _selectedYear = DateTime.now().year;
+  late TabController _tabController;
+  
+  // Índices das abas
+  static const int _allTabIndex = 0;
+  static const int _expensesTabIndex = 1;
+  static const int _incomesTabIndex = 2;
 
   @override
   void initState() {
     super.initState();
     _selectedCardId = widget.initialCardId;
+    _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
+  }
+  
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -240,6 +253,16 @@ class _CreditCardTransactionsScreenState extends State<CreditCardTransactionsScr
             child: CircularProgressIndicator(),
           );
         }
+        
+        // Filtrar transações com base na aba selecionada
+        List<CreditCardTransaction> filteredTransactions = [];
+        if (_tabController.index == _allTabIndex) {
+          filteredTransactions = provider.transactions;
+        } else if (_tabController.index == _expensesTabIndex) {
+          filteredTransactions = provider.transactions.where((t) => !t.isPayment).toList();
+        } else if (_tabController.index == _incomesTabIndex) {
+          filteredTransactions = provider.transactions.where((t) => t.isPayment).toList();
+        }
 
         if (provider.error != null) {
           return Card(
@@ -316,7 +339,7 @@ class _CreditCardTransactionsScreenState extends State<CreditCardTransactionsScr
 
         // Agrupar transações por cartão
         final transactionsByCard = <String, List<CreditCardTransaction>>{};
-        for (final transaction in transactions) {
+        for (final transaction in filteredTransactions) {
           if (!transactionsByCard.containsKey(transaction.creditCardId)) {
             transactionsByCard[transaction.creditCardId] = [];
           }
@@ -328,8 +351,34 @@ class _CreditCardTransactionsScreenState extends State<CreditCardTransactionsScr
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Resumo
-                _buildSummary(transactions),
+                // Abas de navegação
+                Card(
+                  elevation: 2,
+                  child: Column(
+                    children: [
+                      TabBar(
+                        controller: _tabController,
+                        labelColor: Colors.blue.shade600,
+                        unselectedLabelColor: Colors.grey,
+                        indicatorColor: Colors.blue.shade600,
+                        labelStyle: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        onTap: (index) {
+                          setState(() {}); // Força a reconstrução da tela
+                        },
+                        tabs: const [
+                          Tab(text: 'Todas'),
+                          Tab(text: 'Saídas'),
+                          Tab(text: 'Entradas'),
+                        ],
+                      ),
+                      // Resumo
+                      _buildSummary(filteredTransactions),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 20),
                 
                 // Transações por cartão
@@ -362,7 +411,7 @@ class _CreditCardTransactionsScreenState extends State<CreditCardTransactionsScr
     final totalTransactions = transactions.length;
     final totalAmount = transactions.fold<double>(0, (sum, t) => sum + t.amount.abs());
     final totalPayments = transactions.where((t) => t.isPayment).fold<double>(0, (sum, t) => sum + t.amount.abs());
-    final totalExpenses = transactions.where((t) => !t.isPayment).fold<double>(0, (sum, t) => sum + t.amount);
+    final totalExpenses = transactions.where((t) => !t.isPayment).fold<double>(0, (sum, t) => sum + t.amount.abs());
 
     return Card(
       elevation: 2,
@@ -380,32 +429,52 @@ class _CreditCardTransactionsScreenState extends State<CreditCardTransactionsScr
               ),
             ),
             const SizedBox(height: 16),
-            Row(
+            Column(
               children: [
-                Expanded(
-                  child: _buildSummaryItem(
-                    'Transações',
-                    totalTransactions.toString(),
-                    Icons.receipt_long,
-                    Colors.blue,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryItem(
+                        'Transações',
+                        totalTransactions.toString(),
+                        Icons.receipt_long,
+                        Colors.blue,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildSummaryItem(
+                        'Saídas',
+                        'R\$ ${totalExpenses.toStringAsFixed(2)}',
+                        Icons.trending_up,
+                        Colors.red,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildSummaryItem(
+                        'Entradas',
+                        'R\$ ${totalPayments.toStringAsFixed(2)}',
+                        Icons.trending_down,
+                        Colors.green,
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: _buildSummaryItem(
-                    'Gastos',
-                    'R\$ ${totalExpenses.toStringAsFixed(2)}',
-                    Icons.trending_up,
-                    Colors.red,
+                if (totalTransactions == 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: Text(
+                      _tabController.index == _allTabIndex 
+                          ? 'Nenhuma transação encontrada' 
+                          : _tabController.index == _expensesTabIndex 
+                              ? 'Nenhuma saída encontrada' 
+                              : 'Nenhuma entrada encontrada',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: _buildSummaryItem(
-                    'Pagamentos',
-                    'R\$ ${totalPayments.toStringAsFixed(2)}',
-                    Icons.trending_down,
-                    Colors.green,
-                  ),
-                ),
               ],
             ),
           ],
