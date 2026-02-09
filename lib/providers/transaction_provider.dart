@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../models/transaction.dart';
 import '../services/supabase_service.dart';
@@ -10,30 +12,134 @@ class TransactionProvider with ChangeNotifier {
   String? _error;
   String? _currentGroupId;
   EncryptionProvider? _encryptionProvider;
+  RealtimeChannel? _realtimeChannel;
+  DateTime? _lastLoadedMonth;
 
   List<Transaction> get transactions => _transactions;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get currentGroupId => _currentGroupId;
 
-  // Setter para atualizar o grupo atual
   void setCurrentGroup(String? groupId) async {
     if (_currentGroupId != groupId) {
       _currentGroupId = groupId;
-      _transactions.clear(); // Limpar dados antigos
+      _transactions.clear();
       
-      // Inicializar criptografia do grupo se disponível
       if (groupId != null && _encryptionProvider != null) {
         await _encryptionProvider!.initializeGroupEncryption(groupId);
       }
       
+      _subscribeRealtime();
       notifyListeners();
     }
   }
 
-  // Setter para o encryption provider
   void setEncryptionProvider(EncryptionProvider encryptionProvider) {
     _encryptionProvider = encryptionProvider;
+  }
+
+  void _subscribeRealtime() {
+    _realtimeChannel?.unsubscribe();
+    if (_currentGroupId == null) return;
+
+    final supabase = Supabase.instance.client;
+    _realtimeChannel = supabase
+        .channel('expense_realtime_$_currentGroupId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'expense',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'group_id',
+            value: _currentGroupId!,
+          ),
+          callback: (payload) => _onRealtimeInsert(payload.newRecord),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'expense',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'group_id',
+            value: _currentGroupId!,
+          ),
+          callback: (payload) => _onRealtimeUpdate(payload.newRecord),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.delete,
+          schema: 'public',
+          table: 'expense',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'group_id',
+            value: _currentGroupId!,
+          ),
+          callback: (payload) => _onRealtimeDelete(payload.oldRecord),
+        )
+        .subscribe();
+  }
+
+  void _onRealtimeInsert(Map<String, dynamic> record) {
+    if (record.isEmpty) return;
+
+    final exists = _transactions.any((t) => t.id == record['id']);
+    if (exists) return;
+
+    Transaction newTransaction;
+    if (_encryptionProvider?.isEncryptionEnabled == true) {
+      newTransaction = Transaction.fromSupabaseEncrypted(
+        record,
+        _encryptionProvider!.decryptField,
+        _encryptionProvider!.decryptNumericField,
+      );
+    } else {
+      newTransaction = Transaction.fromSupabase(record);
+    }
+
+    if (_lastLoadedMonth != null &&
+        (newTransaction.date.year != _lastLoadedMonth!.year ||
+         newTransaction.date.month != _lastLoadedMonth!.month)) {
+      return;
+    }
+
+    _transactions.add(newTransaction);
+    _transactions.sort((a, b) => b.date.compareTo(a.date));
+    notifyListeners();
+  }
+
+  void _onRealtimeUpdate(Map<String, dynamic> record) {
+    if (record.isEmpty) return;
+
+    final index = _transactions.indexWhere((t) => t.id == record['id']);
+    if (index == -1) return;
+
+    Transaction updated;
+    if (_encryptionProvider?.isEncryptionEnabled == true) {
+      updated = Transaction.fromSupabaseEncrypted(
+        record,
+        _encryptionProvider!.decryptField,
+        _encryptionProvider!.decryptNumericField,
+      );
+    } else {
+      updated = Transaction.fromSupabase(record);
+    }
+
+    _transactions[index] = updated;
+    _transactions.sort((a, b) => b.date.compareTo(a.date));
+    notifyListeners();
+  }
+
+  void _onRealtimeDelete(Map<String, dynamic> record) {
+    if (record.isEmpty) return;
+    _transactions.removeWhere((t) => t.id == record['id']);
+    notifyListeners();
+  }
+
+  void disposeRealtime() {
+    _realtimeChannel?.unsubscribe();
+    _realtimeChannel = null;
   }
   
   List<Transaction> getExpensesByMonth(DateTime selectedMonth) {
@@ -99,9 +205,9 @@ class TransactionProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      _lastLoadedMonth = month;
       final data = await SupabaseService.getExpenses(month: month, groupId: _currentGroupId);
       
-      // Descriptografar dados se a criptografia estiver habilitada
       if (_encryptionProvider?.isEncryptionEnabled == true) {
         _transactions = data.map((json) => Transaction.fromSupabaseEncrypted(
           json, 

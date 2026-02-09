@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Flutter (Development)",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--dart-define=SUPABASE_URL=https://dinrbvxflxmouisjpmfz.supabase.co",
+                "--dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpbnJidnhmbHhtb3Vpc2pwbWZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg2MTQ3ODIsImV4cCI6MjA2NDE5MDc4Mn0.T7Hhh7Hvo4GpgEycASUCqkQMRcgwFYJv5tHX_Ij39VY"
+            ]
+        },
+        {
+            "name": "Flutter Web (Development)",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "chrome",
+            "args": [
+                "--dart-define=SUPABASE_URL=https://dinrbvxflxmouisjpmfz.supabase.co",
+                "--dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpbnJidnhmbHhtb3Vpc2pwbWZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg2MTQ3ODIsImV4cCI6MjA2NDE5MDc4Mn0.T7Hhh7Hvo4GpgEycASUCqkQMRcgwFYJv5tHX_Ij39VY"
+            ]
+        }
+    ]
+}

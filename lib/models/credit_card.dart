@@ -14,6 +14,8 @@ class CreditCard {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? groupId;
+  final int mes;
+  final int ano;
 
   CreditCard({
     required this.id,
@@ -31,8 +33,12 @@ class CreditCard {
     DateTime? createdAt,
     DateTime? updatedAt,
     this.groupId,
+    int? mes,
+    int? ano,
   }) : createdAt = createdAt ?? DateTime.now(),
-       updatedAt = updatedAt ?? DateTime.now();
+       updatedAt = updatedAt ?? DateTime.now(),
+       mes = mes ?? DateTime.now().month,
+       ano = ano ?? DateTime.now().year;
 
   double get usagePercentage => creditLimit > 0 ? (currentBalance / creditLimit) * 100 : 0;
   
@@ -48,9 +54,8 @@ class CreditCard {
   DateTime get closingDate => DateTime(DateTime.now().year, DateTime.now().month, closingDay);
 
   // Convert to Supabase format
-  Map<String, dynamic> toSupabase() {
-    return {
-      'id': id,
+  Map<String, dynamic> toSupabase({bool includeId = false}) {
+    final data = {
       'card_name': name,
       'card_number_masked': cardNumberMasked,
       'bank_name': bankName,
@@ -63,18 +68,26 @@ class CreditCard {
       'is_active': isActive,
       'card_color': cardColor,
       'group_id': groupId,
+      'mes': mes,
+      'ano': ano,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+    
+    if (includeId) {
+      data['id'] = id;
+    }
+    
+    return data;
   }
 
   /// Converte para Map do Supabase com campos criptografados
   Map<String, dynamic> toSupabaseEncrypted(
     String Function(String) encryptField,
     String Function(double) encryptNumericField,
+    {bool includeId = false}
   ) {
-    return {
-      'id': id,
+    final data = {
       'card_name': encryptField(name), // Criptografar nome do cartão
       'card_number_masked': cardNumberMasked, // Manter mascarado (não sensível)
       'bank_name': bankName, // Manter banco (não sensível)
@@ -87,9 +100,17 @@ class CreditCard {
       'is_active': isActive,
       'card_color': cardColor,
       'group_id': groupId,
+      'mes': mes,
+      'ano': ano,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+    
+    if (includeId) {
+      data['id'] = id;
+    }
+    
+    return data;
   }
 
   // Create from Supabase data
@@ -108,6 +129,8 @@ class CreditCard {
       isActive: json['is_active'] ?? true,
       cardColor: json['card_color']?.toString() ?? '#2196F3',
       groupId: json['group_id']?.toString(),
+      mes: _parseIntValue(json['mes'], DateTime.now().month),
+      ano: _parseIntValue(json['ano'], DateTime.now().year),
       createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
     );
@@ -154,6 +177,8 @@ class CreditCard {
       isActive: json['is_active'] ?? true,
       cardColor: json['card_color']?.toString() ?? '#2196F3',
       groupId: json['group_id']?.toString(),
+      mes: _parseIntValue(json['mes'], DateTime.now().month),
+      ano: _parseIntValue(json['ano'], DateTime.now().year),
       createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
     );

@@ -445,7 +445,7 @@ class SupabaseService {
         .eq('id', id);
   }
 
-  // Credit card methods (simplified for basic card info)
+  // Credit card methods (legacy - mantido para compatibilidade)
   static Future<List<Map<String, dynamic>>> getCreditCards({required String groupId, DateTime? month}) async {
     var query = client
         .from('cartao')
@@ -463,7 +463,11 @@ class SupabaseService {
   }
 
   static Future<Map<String, dynamic>> insertCreditCard(Map<String, dynamic> card) async {
-    card['userId'] = currentUser!.id;
+    // O groupId já deve estar presente no card data
+    // Apenas adicionar userId se não estiver presente (para compatibilidade)
+    if (!card.containsKey('userId')) {
+      card['userId'] = currentUser!.id;
+    }
     final response = await client
         .from('cartao')
         .insert(card)
@@ -635,5 +639,121 @@ class SupabaseService {
         .from('group_members')
         .update({'role': newRole})
         .eq('id', memberId);
+  }
+
+  // ============================================================================
+  // CREDIT CARD MASTERS (Cadastro de Cartões)
+  // ============================================================================
+
+  static Future<List<Map<String, dynamic>>> getCreditCardMasters({
+    required String groupId,
+  }) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    final response = await client
+        .from('credit_cards')
+        .select()
+        .eq('group_id', groupId)
+        .eq('is_active', true)
+        .order('bank_name')
+        .order('name');
+    
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  static Future<Map<String, dynamic>> insertCreditCardMaster(Map<String, dynamic> data) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    final response = await client
+        .from('credit_cards')
+        .insert(data)
+        .select()
+        .single();
+    
+    return response;
+  }
+
+  static Future<void> updateCreditCardMaster(String id, Map<String, dynamic> data) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    await client
+        .from('credit_cards')
+        .update(data)
+        .eq('id', id);
+  }
+
+  static Future<void> deleteCreditCardMaster(String id) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    await client
+        .from('credit_cards')
+        .delete()
+        .eq('id', id);
+  }
+
+  // ============================================================================
+  // CREDIT CARD TRANSACTIONS (Transações dos Cartões)
+  // ============================================================================
+
+  static Future<List<Map<String, dynamic>>> getCreditCardTransactions({
+    required String groupId,
+    int? month,
+    int? year,
+    String? cardId,
+  }) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    var query = client
+        .from('credit_card_transactions')
+        .select()
+        .eq('group_id', groupId);
+    
+    if (month != null) {
+      query = query.eq('reference_month', month);
+    }
+    
+    if (year != null) {
+      query = query.eq('reference_year', year);
+    }
+    
+    if (cardId != null) {
+      query = query.eq('credit_card_id', cardId);
+    }
+    
+    final response = await query
+        .order('transaction_date', ascending: false)
+        .order('created_at', ascending: false);
+    
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  static Future<Map<String, dynamic>> insertCreditCardTransaction(Map<String, dynamic> data) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    final response = await client
+        .from('credit_card_transactions')
+        .insert(data)
+        .select()
+        .single();
+    
+    return response;
+  }
+
+  static Future<void> updateCreditCardTransaction(String id, Map<String, dynamic> data) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    await client
+        .from('credit_card_transactions')
+        .update(data)
+        .eq('id', id);
+  }
+
+  static Future<void> deleteCreditCardTransaction(String id) async {
+    if (!isLoggedIn) throw Exception('User not authenticated');
+    
+    await client
+        .from('credit_card_transactions')
+        .delete()
+        .eq('id', id);
   }
 }

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/credit_card_provider.dart';
+import '../providers/credit_card_master_provider.dart';
+import '../providers/credit_card_transaction_provider.dart';
 import '../providers/ai_provider.dart';
 import '../providers/installment_provider.dart';
 import '../providers/date_provider.dart';
@@ -34,6 +36,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => NotificationProvider()),
         ChangeNotifierProvider(create: (context) => TransactionProvider()),
         ChangeNotifierProvider(create: (context) => CreditCardProvider()),
+        ChangeNotifierProvider(create: (context) => CreditCardMasterProvider()),
+        ChangeNotifierProvider(create: (context) => CreditCardTransactionProvider()),
         ChangeNotifierProvider(create: (context) => InstallmentProvider()),
         ChangeNotifierProvider(create: (_) => AIProvider()),
         ChangeNotifierProvider(create: (context) => FinanceProvider()),

@@ -5,6 +5,7 @@ import '../providers/notification_provider.dart';
 import '../providers/group_provider.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/group_management_screen.dart';
+import '../screens/whatsapp_integration_screen.dart';
 
 /// Menu de perfil do usuário com avatar, badge de notificações e dropdown
 class UserProfileMenu extends StatefulWidget {
@@ -58,6 +59,15 @@ class _UserProfileMenuState extends State<UserProfileMenu> {
               child: _buildMenuItem(
                 Icons.group,
                 'Administrar Grupos',
+              ),
+            ),
+            
+            // Integração WhatsApp
+            PopupMenuItem<String>(
+              value: 'whatsapp',
+              child: _buildMenuItem(
+                Icons.chat,
+                'WhatsApp',
               ),
             ),
             
@@ -231,6 +241,9 @@ class _UserProfileMenuState extends State<UserProfileMenu> {
       case 'groups':
         _navigateToGroupManagement(context);
         break;
+      case 'whatsapp':
+        _navigateToWhatsApp(context);
+        break;
       case 'logout':
         _showLogoutConfirmation(context);
         break;
@@ -254,6 +267,15 @@ class _UserProfileMenuState extends State<UserProfileMenu> {
       context,
       MaterialPageRoute(
         builder: (context) => const GroupManagementScreen(),
+      ),
+    );
+  }
+
+  void _navigateToWhatsApp(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const WhatsAppIntegrationScreen(),
       ),
     );
   }

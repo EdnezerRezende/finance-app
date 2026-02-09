@@ -117,6 +117,7 @@ class _FinancesScreenState extends State<FinancesScreen> with SingleTickerProvid
         },
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: "finances_fab",
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(

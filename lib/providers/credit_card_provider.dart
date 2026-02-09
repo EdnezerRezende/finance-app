@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:uuid/uuid.dart';
 import '../models/credit_card.dart';
 import '../services/supabase_service.dart';
 import 'encryption_provider.dart';
@@ -26,8 +25,8 @@ class CreditCardProvider with ChangeNotifier {
   }
 
   // Setter para o encryption provider
-  void setEncryptionProvider(EncryptionProvider encryptionProvider) {
-    _encryptionProvider = encryptionProvider;
+  void setEncryptionProvider(EncryptionProvider provider) {
+    _encryptionProvider = provider;
   }
 
   double get totalLimit => _creditCards.fold(0, (sum, card) => sum + card.creditLimit);
@@ -59,16 +58,8 @@ class CreditCardProvider with ChangeNotifier {
       final selectedMonth = month ?? DateTime.now();
       final data = await SupabaseService.getCreditCards(groupId: _currentGroupId!, month: selectedMonth);
       
-      // Descriptografar dados se a criptografia estiver habilitada
-      if (_encryptionProvider?.isEncryptionEnabled == true) {
-        _creditCards = data.map((json) => CreditCard.fromSupabaseEncrypted(
-          json, 
-          _encryptionProvider!.decryptField, 
-          _encryptionProvider!.decryptNumericField
-        )).toList();
-      } else {
-        _creditCards = data.map((json) => CreditCard.fromSupabase(json)).toList();
-      }
+      // Carregar dados sem descriptografia
+      _creditCards = data.map((json) => CreditCard.fromSupabase(json)).toList();
     } catch (e) {
       _error = 'Erro ao carregar cartões: $e';
       debugPrint('Error loading credit cards: $e');
@@ -97,46 +88,31 @@ class CreditCardProvider with ChangeNotifier {
 
     try {
       final newCard = CreditCard(
-        id: const Uuid().v4(),
+        id: '', // Será gerado pelo banco de dados
         name: card.name,
         cardNumberMasked: card.cardNumberMasked,
         bankName: card.bankName,
         cardType: card.cardType,
         creditLimit: card.creditLimit,
-        availableLimit: card.creditLimit,
-        currentBalance: 0.0,
+        availableLimit: card.availableLimit,
+        currentBalance: card.currentBalance, // Manter o valor original
         closingDay: card.closingDay,
         dueDay: card.dueDay,
         cardColor: card.cardColor,
         groupId: _currentGroupId,
+        mes: card.mes,
+        ano: card.ano,
       );
 
-      // Criptografar dados se a criptografia estiver habilitada
-      Map<String, dynamic> cardData;
-      if (_encryptionProvider?.isEncryptionEnabled == true) {
-        cardData = newCard.toSupabaseEncrypted(
-          _encryptionProvider!.encryptField, 
-          _encryptionProvider!.encryptNumericField
-        );
-        debugPrint('CreditCardProvider: Salvando cartão com criptografia habilitada');
-      } else {
-        cardData = newCard.toSupabase();
-        debugPrint('CreditCardProvider: Salvando cartão sem criptografia');
-      }
+      // Salvar dados sem criptografia
+      final cardData = newCard.toSupabase(includeId: false); // Não incluir ID para inserção
+      debugPrint('CreditCardProvider: Salvando cartão sem criptografia');
       
       final data = await SupabaseService.insertCreditCard(cardData);
       
-      // Descriptografar dados retornados se necessário
-      CreditCard savedCard;
-      if (_encryptionProvider?.isEncryptionEnabled == true) {
-        savedCard = CreditCard.fromSupabaseEncrypted(
-          data, 
-          _encryptionProvider!.decryptField, 
-          _encryptionProvider!.decryptNumericField
-        );
-      } else {
-        savedCard = CreditCard.fromSupabase(data);
-      }
+      // Carregar dados sem descriptografia
+      final savedCard = CreditCard.fromSupabase(data);
+      debugPrint('CreditCardProvider: Cartão carregado sem criptografia');
       
       _creditCards.add(savedCard);
     } catch (e) {
@@ -160,18 +136,9 @@ class CreditCardProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Criptografar dados se a criptografia estiver habilitada
-      Map<String, dynamic> cardData;
-      if (_encryptionProvider?.isEncryptionEnabled == true) {
-        cardData = card.toSupabaseEncrypted(
-          _encryptionProvider!.encryptField, 
-          _encryptionProvider!.encryptNumericField
-        );
-        debugPrint('CreditCardProvider: Atualizando cartão com criptografia habilitada');
-      } else {
-        cardData = card.toSupabase();
-        debugPrint('CreditCardProvider: Atualizando cartão sem criptografia');
-      }
+      // Atualizar dados sem criptografia
+      final cardData = card.toSupabase(includeId: true); // Incluir ID para atualização
+      debugPrint('CreditCardProvider: Atualizando cartão sem criptografia');
       
       await SupabaseService.updateCreditCard(card.id, cardData);
       
@@ -235,5 +202,48 @@ class CreditCardProvider with ChangeNotifier {
       final daysUntilDue = dueDate.difference(now).inDays;
       return daysUntilDue <= 7 && daysUntilDue >= 0;
     }).toList();
+  }
+
+  // Agrupar cartões por banco
+  Map<String, List<CreditCard>> get creditCardsByBank {
+    final grouped = <String, List<CreditCard>>{};
+    for (final card in _creditCards) {
+      final bankName = card.bankName;
+      if (!grouped.containsKey(bankName)) {
+        grouped[bankName] = [];
+      }
+      grouped[bankName]!.add(card);
+    }
+    return grouped;
+  }
+
+  // Calcular resumo por banco
+  Map<String, Map<String, dynamic>> get bankSummaries {
+    final summaries = <String, Map<String, dynamic>>{};
+    final grouped = creditCardsByBank;
+    
+    for (final entry in grouped.entries) {
+      final bankName = entry.key;
+      final cards = entry.value;
+      
+      final totalBalance = cards.fold<double>(0, (sum, card) => sum + card.currentBalance);
+      final totalTransactions = cards.length;
+      final firstCard = cards.first;
+      
+      summaries[bankName] = {
+        'bankName': bankName,
+        'totalBalance': totalBalance,
+        'totalTransactions': totalTransactions,
+        'cardColor': firstCard.cardColor,
+        'cards': cards,
+      };
+    }
+    
+    return summaries;
+  }
+
+  // Obter cartões de um banco específico
+  List<CreditCard> getCardsByBank(String bankName) {
+    return _creditCards.where((card) => card.bankName == bankName).toList();
   }
 }
