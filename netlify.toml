@@ -1,22 +1,14 @@
 [build]
   publish = "build/web"
   command = """
-    # Install Flutter
-    git clone https://github.com/flutter/flutter.git -b stable --depth 1
+    git clone https://github.com/flutter/flutter.git -b 3.32.8 --depth 1
     export PATH="$PATH:`pwd`/flutter/bin"
-    
-    # Enable web support
     flutter config --enable-web
-    
-    # Get dependencies
     flutter pub get
-    
-    # Build for web
-    flutter build web --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY --release
+    flutter build web --web-renderer html --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY --release 2>&1
   """
 
 [build.environment]
-  FLUTTER_VERSION = "3.16.0"
   SECRETS_SCAN_OMIT_PATHS = ".dart_tool/**,build/**"
 
 [[redirects]]
